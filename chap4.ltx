@@ -1,0 +1,622 @@
+%    351 User Interface Elements
+
+This chapter describes how the basic classes described in Chapter
+\ref{LowLevel} are used and extended to provide a set of user
+interface elements.  The objects presented here are intended to
+provide a basis for beginning to explore the system's potential, they
+do not exploit the full potential of a multi-scale user interface
+system.  They include the set of familiar user interface objects -
+buttons, menus, and so on.  The main goal of this chapter is to show
+that the mechanisms defined in the previous chapter yield
+implementations of conventional user interface elements that are
+simple and straightforward.
+
+This chapter is divided into four sections.  The first covers some
+simple visual elements such as backdrops, text labels, and frames.
+The next covers some basic event handler objects - one for dragging
+and zooming with the mouse, one with some bindings for changing the
+stacking order of objects, etc.  The third section introduces some
+familiar interactive objects such as buttons and menus.  The fourth
+section covers some basic multi-scale interactive elements.
+%%    112 Visual Elements
+\section{Basic Visual Elements}
+%%%     12 Backdrops
+\paragraph{Backdrop -- }
+A {\tt <backdrop>} is an opaque tablet of unlimited size.  It is usually
+inserted at the bottom of a group to provide a uniform visual
+background, by default solid gray.  In the default initial
+configuration it is mixed with an event handler that controls the
+pop-up menu, zooming and dragging of the view, etc.  The only unusual
+requirement for implementing backdrops is the existence of a distinct
+value in our shape data structure for an ``unbounded shape'', one that
+extends infinitely in all directions.  The {\tt initialize} method
+simply sets the area to this value and a render method is provided
+which just erases any area it is passed.
+%%%     13 Text Labels
+\paragraph{Text Label --}
+
+A {\tt <label>} is a single line of text whose font, foreground
+color, and background color can be selected.  If the background color
+is set to boolean false ({\tt \#f}) the background will be transparent,
+whatever is below it will show through the UN-drawn areas of the text.
+This means the {\tt transparent?} predicate must be defined to return the
+boolean negation of the background color, so that the system will always
+redraw the area below the label before drawing the label itself:
+\begin{verbatim}
+(define-method transparent? ((self <label>) (v <viewer>))
+   (not (get-background self)))
+\end{verbatim}
+%%%     52 Frames
+\paragraph{Frame --}
+
+A {\tt <frame>} is used to draw a visible border around an object.
+The border can be raised, flat, or sunken.  It is implemented as a
+subclass of {\tt <group>}, with a special render method that draws the
+border.  It is frequently used to visually separate an object from its
+surroundings, or as part of an object such as a button that needs to
+switch from a raised to a flat appearance when activated.
+
+A frame's thickness may be given using several different units of
+measure, either as a fraction of the frame's dimensions, or in terms
+of either the frame's public or private coordinate system.  If given
+as a fraction, it can be either a fraction of the width, a fraction of
+the height, or else each thickness can be computed separately:
+horizontal as a fraction of the width and the vertical as a fraction
+of the height.
+
+If the constructor is passed a tablet to be inserted into the frame
+then the frame's geometry will be adjusted so that the tablet just
+fits within the frame's inner border.
+
+Besides {\tt <group>}, the {\tt <frame>} class has another superclass
+{\tt <frame-handler>} which is an event handler to decide whether an
+event fell onto the frame's border or inside the frame.  Based on this
+decision, it forwards these events to one of two handlers.  The {\tt
+<frame-handler>} also changes the cursor to a special shape when it is
+over the frame.  An example of the use of a handler for events that fall
+on the frame's border is to drag and scale the frame and its contents.
+
+ % Note that the events which are passed to the objects inside the frame
+ % may returned with a ``stopped'' flag, indicating that they were not
+ % used.  These are directed to yet another handler, the frame's {\tt
+ % post-handler}.
+
+ % To frame a filter we need to place the filter's camera just below the
+ % frame (rather than the filter.)  This is done by assigning a hooks
+ % object to the frame, so that so that whenever the frame is inserted
+ % into a group the camera will be inserted just below it.
+ % 
+ % 
+ % \begin{verbatim}[frame definitions]
+ % (define-method frame-portal ((filter <portal>) (r <rectangle>))
+ %   (let* ((frame (frame-tablet filter r))
+ % 	 (handler (make <drag-bindings> :prefix 'control-))
+ % 	 (camera (get-camera filter)))
+ %     (set-transform camera (get-area camera) (get-area frame))
+ %     ;(set-hooks frame (make <magnifier-hooks> :camera camera))
+ %     (set-handler (get-camera filter) handler)
+ %     frame))
+ % \end{verbatim}
+%%%     33 Images
+\paragraph{Image -- }
+
+One important type of tablet is the {\tt <image>} class, which is a
+subclass of both the {\tt <tablet>} class and the {\tt <pixmap>}
+class.  The {\tt <pixmap>} class corresponds to a window system object
+containing a grid of pixel values.  An image also has a path slot
+which holds the name of the file from which the image data is to be
+loaded.  The {\tt <pixmap>} constructor is able to recognize a variety
+of image formats by examining the file's header, and it applies
+various filters to convert the image to a common format.  Finally, the
+image is loaded into memory and rasterized so that its pixel values
+are appropriate for the current window.
+
+The image's private coordinate system is equal to its pixel coordinate
+system, so to render an area of an image we simply convert the area to
+integer coordinates and call the {\tt copy-shape} method of the {\tt
+<pixmap>} class.  This method does a fast scaled copy of some
+sub-shape of the image to the window.
+
+ % The {\tt make-image-button} method creates a menu button which can be
+ % inserted into the main pop-up menu.  Most objects define such a
+ % method, and then the user chooses which buttons to use in the
+ % configuration file {\tt ~/.tabrc}.  The button constructor takes two
+ % arguments, a tablet which defines the button's appearance, and an
+ % action function which is invoked when the button is released.
+ % 
+ % When invoked, the action function is passed two arguments, the tablet
+ % that the event hit (in this case the button) and the event itself.
+ % The main use of these arguments in this particular situation is to
+ % obtain the viewer from which the event originated, and from that the
+ % menu object.  The position and scale of the menu object is then used
+ % to determine the position and scale of the image that will be created.
+%%    124 Event Handlers
+\section{Basic Event Handlers}
+
+This section covers several objects derived from the {\tt <handler>}
+class, which can be associated with a tablet to give it various types
+of useful interactive behavior.  One of the most important features of
+the Tab API is the extent to which the interactive behavior is
+decoupled from the visual appearance.  Each bit of interactive
+behavior is implemented in a different subclass of {\tt <handler>},
+and they can all be mixed and matched at will.
+%%%     91 Dragging and Zooming
+\subsection{Dragging and Zooming}\label{drag-bindings}
+
+In the interest of encouraging a consistent user interface across Tab
+applications, a class derived from {\tt <handler>} is provided called
+{\tt <drag-bindings>}.  This class implements a standard interface for
+dragging and scaling objects.  Any object can be given these bindings
+by simply creating a {\tt <drag-bindings>} instance and assigning it
+using the {\tt set-handler} method.
+
+First we need to choose a set of bindings.  We reserve mouse button
+one for functions specific to objects, or for popping up a menu if the
+event hits the background.  Then we will assign
+\begin{list}{$\bullet$}{\itemsep 0pt}
+\item Hold mouse button 2 to zoom in
+\item Hold mouse button 3 to zoom out
+\item Holding both buttons 2 and 3 to drag the view
+\end{list}
+This handler class has a number of slots, both class slots and
+instance slots, which hold values that control the interactive
+behavior.  The first of these is {\tt zoom-in-velocity}, a class slot.
+This holds a real number which expresses the zoom speed in terms of
+the change in scale per second.  The default value is 2, meaning that
+the size will double each second when zooming in and halve each second
+when zooming out.  When the mouse goes down at the start of a zoom a
+timer is set, and every time that timer goes off the view is updated
+and the timer is reset.
+
+ % (A variant suitable for two button mice should be devised.)
+
+When the mouse comes up the view is updated and the timer is
+canceled.  The zoom factor of the last step must be based on the time
+the mouse up event occurred, not the current time when the event gets
+handled.  Even having taken these measures, the events can be delayed
+while they are waiting to be read from the socket connecting X server
+and client, and they aren't assigned a time until they are retrieved
+by the client side library.  The only solutions to this problem are to
+keep the rendering from causing long delays by using semantic zooming,
+or to use multi-threading to retrieve the event asynchronously.
+
+The zoom factor at any time is determined by the elapsed wall clock
+time that the mouse button has been down up to that point.  By basing
+the zoom on the actual elapsed time we get a constant rate of zooming,
+even if sporadic delays occur.  For a given zoom velocity $v$ and time
+period $t$, the calculation is the same as figuring what interest rate
+is required to produce a given return -- the desired zoom factor is
+$f$ in the equation \(f^t = v\) (as can be seen by setting $t$ to
+either zero or one,) thus,
+\begin{eqnarray*}
+t \log f & = & \log v \\
+f & = & e^{(\log v) / t}
+\end{eqnarray*}
+
+Other slots related to zooming include an {\tt action} slot, which
+holds the symbol {\tt zooming} while a zoom is occurring.  This is
+used to decide whether a zoom needs to be canceled when the mouse
+button comes up.  The slot {\tt fixed-point} holds the mouse position
+at the time of the last timer event, and is used as the position
+around which the zooming occurs.  The {\tt zoom-factor} slot holds the
+amount by which the object is currently zoomed, and the {\tt
+zoom-velocity} slot holds either {\tt zoom-in-velocity} if we are
+zooming or its inverse if we are zooming out.
+
+Note that the object being zoomed grabs the event stream during the
+zoom, so that the zoom continues even if the mouse happens to end up
+outside of the object's shape after a zoom step.
+
+One more refinement that can be useful is to have the zoom start out
+at a slower rate to allow fine tuning of scale, later increasing to a
+higher rate for coarse adjustment.
+
+ % [IMPLEMENT.]
+
+Dragging is similar to zooming, but in some ways simpler.  Like
+zooming, we save the initial mouse position as our fixed point.  At
+any time, the position of the drag is given by the difference between
+the mouses current position and the fixed point.  This avoids
+cumulative errors that might result from repeatedly adding incremental
+mouse movements to the object position.  As in zooming, the event
+stream is grabbed during dragging, so that the mouse can move off
+screen without dropping the object if necessary.
+
+There is also a subclass {\tt <tablet-bindings>} of {\tt
+<drag-bindings>}, which includes methods that are only appropriate for
+regular objects, not for cameras.  These include an action to change
+the tablet to its natural size, and one to raise a tablet to just
+below the viewer.  Note that these actions ignore the prefix, because
+they don't actually change the tablet's geometry, just the view or the
+stacking order.  In order to save users the annoyance of getting lost,
+there is also a {\tt <home-handler>} which is bound to the logo, and
+returns the main view to its original position when it receives a
+click event.
+%%%     23 Event Symbols
+\subsection{Event Symbols}
+
+The {\tt <event>} object has a method which returns a list of symbols
+that describe the event.  This list starts with the most specific 
+description (e.g. {\tt shift- buttonpress-2}) and ends with the least
+specific (e.g. {\tt any-buttonpress}.)  To handle an event a search is
+made for a generic function that can handle the tablet that received
+the event as an argument.  If no method is found in the most specific
+generic function, the less specific ones are tried.  For example,
+the {\tt buttonpress-3} method of the {\tt <drag-bindings>} handler
+starts a zoom out, so this method will be activated whenever a tablet
+that has {\tt <drag-bindings>} as a superclass receives such an event,
+unless a more specific method exists in that generic function.
+
+The {\tt <drag-bindings>} object also has a {\tt prefix} slot which
+holds a prefix which is prepended to all the event handling methods
+that it creates.  This can be used to create a drag binder which only
+reacts when the {\tt shift-} key or the {\tt control-} key is down.
+By convention, actions that only affect the view are bound with no
+modifiers, actions that move or scale an object are bound with the
+{\tt shift-} prefix, and objects that modify the view of a portal are
+bound with the {\tt control-} prefix.
+%%     94 Interactive Elements
+\section{Basic Interactive Elements}
+%%%     37 Buttons
+\subsection{Buttons}
+
+A button consists of a tablet, a frame around the tablet with some
+special bindings, and an action.  The button is initially up, meaning
+that its frame is in ``raised'' mode.  When a buttonpress or motion
+event with a mouse button down occurs inside the frame, the button
+goes into ``pressed'' mode, meaning that the frame takes on a ``sunken''
+appearance.  When a button release event occurs inside the frame the
+action is performed and the button goes back into raised mode.  If the
+pointer leaves the button while it is down it goes up again without
+triggering the action.
+
+Tab provides three classes derived from a basic {\tt <button>} class:
+\begin{itemize}
+\item A {\tt <momentary-button>} goes down when the mouse button is
+pressed, or when the mouse pointer enters its face while the mouse
+button is pressed.  It comes back up when the mouse button is
+released, or when the mouse pointer leaves its face.  It has an action
+function which is invoked only when the mouse button is released while
+the mouse pointer is on its face.
+\item A {\tt <toggle-button>}'s state inverts only when the mouse
+button is pressed while the mouse pointer is on its face.  Its action
+function is invoked only when its state goes from up to down.
+\item A {\tt <radio-button>} is one of a set of {\tt
+<toggle-button>}s, each of which automatically go into the up state
+whenever any of the other members go down.
+\end{itemize}
+A button is a frame with an object inserted into it to display the
+button's face -- often a text label.  When the button is pressed
+(receives a buttonpress event or a motion event with the button down)
+the frame relief is changed from raised to flat.  The button also
+grabs the event stream.  This is to ensure that the button knows when
+the mouse pointer leaves its surface so it can do a
+release.\sfootnote{Many systems use enter and leave events to achieve
+this functionality.  Tab allows multiple simultaneous grabs of the
+event stream to achieve the same effect.}
+%%%     25 Menus
+\subsection{Menus}
+
+A {\tt <menu>} is a {\tt <group>} containing several buttons arranged
+in a column or row.  The menu constructor lays out the buttons in
+either a row or a column, and inserts them into the group beneath the
+camera associated with the menu.  In vertical menus all the buttons
+are equal in both height and width, narrower buttons are extended to
+the width of the widest.  Horizontal buttons are all the same height,
+but they are allowed to be of different widths.
+
+A {\tt <popup-menu>} is a {\tt <menu>} which appears when an object
+(usually a {\tt <back drop>}) which implements {\tt <popup-handler>}
+receives a {\tt buttonpress-1} event.  It then grabs the event stream
+and remains up until a {\tt buttonrelease-1} event is received.  If
+that event occurs on one of the buttons it will be activated.
+A popup menu has a {\tt pop-marker} slot, which holds the object
+below which the popup menu will be inserted.
+
+When a menu is popped up, the position of the mouse and the scale of
+the view is saved.  This position can then be retrieved from the menu
+to position objects created by an action in the menu.  The menu is
+first positioned using the saved position and scale factors.  Then it
+is moved so that the mouse is near the left side of the top button.
+(It is assumed here that the menu's orientation is vertical.)
+%%%     30 Tabview
+\subsection{Tabview}
+
+The {\tt <tabview>} is a subclass of the {\tt <viewer>} object that
+provides support for panning and zooming over the surface.  It has
+become traditional for a Pad system to provide such an interface for
+navigating Pad space and the objects on it when the system is started,
+and to provide a logo and other instruments that do not move -- they
+remain ``stuck to the glass'' of the user's monitor.  This is
+accomplished by creating an arrangement of portals and cameras which
+are managed by a {\tt <tabview>} object.  This section describes how a
+{\tt <tabview>} object is initialized.  The arrangement is shown in
+figure \ref{InitialSystemConfiguration}.
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\textwidth]{fig/tabview.eps}}
+\caption{Initial system configuration.}
+\label{InitialSystemConfiguration}
+\end{figure}
+
+The viewer is fixed -- that is, it cannot be dragged around using the
+mouse.  Below it is the logo, and below that a portal which is
+attached to a floating camera.  The floating camera responds to
+various mouse events to allow the user pan and zoom around any objects
+between it and the backdrop.  The {\tt <tabview>} creates and manages
+this arrangement.
+%%    237 Multiscale Elements
+
+\section{Basic Multiscale Elements}
+
+The next task is to begin designing applications that take advantage
+of Tabula Rasa's multi-scale features.  
+Several other design issues can be identified:
+
+\paragraph{Hysteresis --} The scale at which an object appears should
+be larger than the scale at which it disappears.  If for some reason
+an object is more expensive to render the first time its appearance is
+delayed until it reaches a larger scale than it would normally appear
+at.  This might be due to the necessity of loading an image from disk
+into memory.
+
+\paragraph{Text Labels --} In Tab you can draw text at any aspect
+ratio, but only some ratios are pleasing to the eye.  In general,
+ratios wider than the text's natural size are unacceptable, while a
+certain range narrower than natural size are acceptable.  Therefore,
+text which does not fill the allotted space is horizontally centered
+in that space, while text that cannot be narrowed enough to fit is
+truncated on the right.
+
+\paragraph{Aspect Ratio --} The optimal aspect ratio of an object can
+change as its scale changes.  A text label representing a file name
+generally has a wide aspect ratio, while the image that file contains
+usually has an aspect ratio fairly close to one.  How can we make the
+transition from label to content without confusing the user or wasting
+space?
+
+We begin with a few simple (but useful) applications.
+%%%     16 magnifier.scm
+\subsection{A Magnifying Glass}
+
+\begin{figure}[htpb]\label{magnifier}
+\centerline{\includegraphics{fig/magnifier.eps}}
+\caption{A magnifier is a framed portal whose camera is constrained
+	 to stay directly below the frame.  When the camera is smaller
+	 than the portal (as shown here) it is enlarging.}
+\end{figure}
+
+A {\tt <magnifier>} is a framed portal.  The frame is given bindings
+(via inheritance) to allow dragging and scaling of both itself (via
+its border) and its look-on (by using the mouse while holding the
+control key.)  The portal is connected to a camera which inherits from
+a constraint object to keep it centered on and directly below the
+frame, as shown in figure \ref{magnifier}
+%%%     21 Filtered Rendering Example
+\subsection{Filtered Rendering Example}
+
+A simple example of filtered rendering is a set of $x,y$ data points
+which we wish to be able to see using different types of
+visualizations, such as a line graph or a bar graph.  Suppose we have
+defined a class {\tt <xy-data>} which can contain a set of data and
+which displays itself as two columns of numbers.
+
+We will now define two subclasses of {\tt <filter>} called {\tt
+<xy-linegraph-filter>} and {\tt <xy-bargraph-filter>}.  When these
+filters are placed over an {\tt <xy-data>} object we want them to give
+different views of the data.  One of the filters will display the data
+as a line graph, the other as a bar graph.
+
+The line graph and bar graph are constructed identically, except for
+the details of the render method.  For the bar graph, a class {\tt
+<xy-bargraph-filter>} is derived from {\tt <filter>}.  Its constructor
+initializes its delegate class to {\tt <xy-data>} and its delegator
+class to {\tt <xy-bargraph>}.  The {\tt <xy-bargraph>} class is
+derived from {\tt <xy-data>}, and a render method for this class is
+created which scans the data to locate its extremes and draws the bar
+graph.  That is all that is needed for a filter which simply changes
+the appearance of a tablet.
+%%%     44 text-buffer.scm
+\subsection{Filtered Event Handling}
+
+In the same way that the previous section was a demonstration of
+filtered rendering, this section is a demonstration of filtered event
+handling.  A text buffer object is presented, and a filter which
+implements a simple work-through editor.  When the filter is placed
+over a text buffer a new ``text being edited'' object is created whose
+type has a delegation style inheritance relationship with the text
+buffer's type.  It extends the text buffer's functionality by adding a
+cursor and an event handler to interpret the various editing commands.
+
+The {\tt <text>} object is derived from {\tt <tablet>}, and it
+contains all the information to describe the content and appearance of
+the text: a file name, the lines of text, a font, foreground and
+background colors, the widths of the margins and the aspect ratio of
+the page.  It has a constructor method that reads the text from a
+file.  It also has a render method that draws the text according to
+the appearance parameters described above.  The render method is
+divided into two parts, a {\tt render-background} method and a {\tt
+render-text} method.  This allows subclasses of {\tt <text>} to use
+the text drawing method after drawing a different background.
+The {\tt <text>} class also has methods to insert and delete text.
+
+The {\tt <text-filter>} object is a subclass of {\tt <filter>} whose
+delegate class is {\tt <text>} and whose delegator class is {\tt
+<text-being-edited>}.  The {\tt <text-being- edited>} class is a
+delegation subclass of {\tt <text>}.  It adds two slots to the {\tt
+<text>} class to hold the integers {\tt cursor-row} and {\tt cursor-col},
+as well as a {\tt cursor-color} slot.
+
+The {\tt <text-being-edited>} render method first fills the background
+with a slightly darker color than the {\tt <text>} class background
+color, to visually distinguish editable text.  It then determines the
+location of the character that the cursor is positioned over and fills
+the character's bounding rectangle with the cursor color.  It then
+invokes the {\tt <text>} method to draw the characters of the text.
+
+The {\tt <text-being-edited>} class also has methods {\tt up}, {\tt
+down}, {\tt left} and {\tt right} which move the cursor by damaging
+the old cursor location, changing the values of {\tt cursor-row} and
+{\tt cursor-col}, and then damaging the new position.  Finally, the
+events are bound to actions by defining event-named methods for the
+cursor keys, the text keys and so on.
+%%%     20 drawing editor
+
+\subsection{A Drawing Filter}
+
+The next type of object is a filter for editing drawings, which are
+collections of drawing primitives.  It demonstrates how controls can
+be attached to a filter by giving the user buttons to select the type
+of object to draw and the color to use to draw it.  Because we need to
+associate some controls with the filter (to select the current drawing
+style and color), we derive it from a {\tt <group>} rather than a {\tt
+<filter>}.  Inside the group go the control menus and a {\tt
+<filter>}, to which we assign the delegate class {\tt <drawing>} and
+the delegator class {\tt <drawing-being- edited>}.  A {\tt <drawing>}
+is essentially a display list, while a {\tt <drawing-being- edited>}
+adds to that some state variables to hold information about the object
+being drawn.  For example, if we are drawing a rectangle the position
+of the initial corner is stored so a ``rubber band'' rectangle can
+be drawn until the final position is selected.  At that point primitive
+{\tt <drawing>} methods are called to add the rectangle to the display
+list data structure.
+%%%     45 Directory Editor
+
+\subsection{Directory Viewer}
+
+This section describes a tablet that provides a view of a directory
+tree.  This is the first semantic zooming application, in that it
+displays a hierarchical data structure and allows the user to move
+closer and closer, revealing more detail in the process.
+
+The viewer will lay out the elements of a directory in a rectangular
+grid, maintaining a certain aspect ratio and element spacing.  Each
+member of the directory is represented by a separate tablet of a type
+suitable to the type of file it represents -- images are represented
+by image tablets, text files by text tablets, and so on.  In
+particular, each subdirectory is itself represented by the same type
+of directory viewer as the top level object.
+
+Semantic zooming must be employed by the directory viewer to prevent
+any attempt to instantly load the entire content of each of its
+elements, which would cause a recursive loading of every file in the
+entire subtree.  Instead, a directory is initially populated by {\tt
+<loader>} objects, each of which are assigned to a particular path
+name and will load that object the first time it is displayed above a
+certain scale.  Until that time they simply display a plain background
+with the name of the file they represent.
+
+We also want the objects to disappear when they once again become
+small, as rendering even a small version of an object can be
+computationally expensive in relation to the amount of screen area
+they cover.  For this reason we don't simply replace the loader object
+with the real object, but instead the real object is inserted into the
+loader, which is derived from the group class.  The loader's render
+method checks the scale of any render requests and invokes its own
+simple rendering method at small scales and the default group
+rendering method at larger scales when we want to see the contained
+object.
+
+We want the directory editor to be able to use standard Tab objects to
+represent directory elements -- we don't want to invent special
+objects for the directory editor's use, or to make the directory a
+single object that has its own way of displaying files.  For this
+reason, we derive the {\tt <directory>} class from a {\tt <group>}
+class, (initially {\tt <oblist>}) and add a caption giving the folder's
+name.  Then the elements representing the directory's files will be
+inserted into the group.
+%%%     50 Layout
+
+\paragraph{Directory Layout}
+
+Now we need to determine a suitable lay out for the file nodes.  Each
+file will have the aspect ratio given in {\tt page-aspect}, and we want
+gutters between each row and column, but not around the edge.  The
+vertical and horizontal gutters should be as nearly equal as possible.
+Our approach is to find the best layout with no gutters, and then to
+scale the nodes down until both vertical and horizontal gutters exceed
+a minimum size.
+
+One approach is to try different numbers of rows until the amount of
+wasted space is minimized.  Suppose we have $n$ nodes to be laid out.
+We can compute the number of columns $c$ for a given number of rows
+$r$ as follows.  We know that the first $r-1$ rows will each have $c$
+nodes, and the last will have between 1 and $c-1$, so
+
+$$c(r - 1) + 1 \le n \le c(r - 1) + (c - 1)$$
+
+$$ r \le \frac{n + c - 1}{c} \le r + \frac{c-2}{c}$$
+
+Which, for $c \ge 1$, can be expressed as
+
+$$ r = \lfloor \frac{n + c - 1}{c} \rfloor $$
+
+
+Suppose now our desired aspect ratio (height divided by width) is $a$,
+and we have a rectangle of width $w$ and height $h$.  We need to
+choose the value for $c$ which yields spaces in our layout whose
+aspect ratio is closest to $a$.  For a given choice of $c$ the actual
+aspect ratio of the spaces $a'$ is
+
+$$a' = \frac{h / r}{w / c} = \frac{hc}{wr}$$
+
+$$a' = \frac{h c}{w \left(\lfloor \frac{n + c - 1}{c} \rfloor\right)}$$
+
+For a given choice of $c$, the resulting layout will either yield
+spaces for nodes which have too large an aspect ratio, in which case
+horizontal space will go unused, or to small an aspect ratio, in which
+case vertical space will go unfilled.  As the number of columns
+increases, the aspect ratio will increase.  We want to stop when the
+aspect ratio first exceeds the the target aspect ratio, and return
+either this or the previous layout, depending on which wasted less
+space.  For an area $w$ by $h$, the amount of wasted space will be
+
+$$ \max(h (w - ch / ra), w (h - rwa/c)) $$
+
+An adequate method of computing the best value of $c$ is to try each
+value until the amount of wasted space begins to increase.
+%%%     41 animation.scm
+\subsection{Animation}
+
+An {\tt <animation>} is a tablet containing a vector of images, a
+current offset, and a frame rate.  The constructor first checks that
+there are at least two images in the animation.  It then locates the
+viewer argument so it can loop through images turning them from path
+names into {\tt <image>} objects.  Finally, it sets up timer loop by
+passing itself to {\tt set-timer} and defining an {\tt alarm} method
+which increments the frame number (modulo the number of frame),
+damages the animation, and re-sets the timer.  The render method
+simply calls the render method of the current image.
+%%     29 Conclusion
+\section{Conclusion}
+
+This chapter has described the most basic Tab objects which have been
+implemented on top of the framework laid out in the previous chapter.
+With the creation of these objects we begin to explore the fundamentals
+of multi-scale application design.
+
+Apart from their multi-scale behavior, the basic visual elements are
+similar to those in non-zooming systems: text, images, frames, etc.
+Interactive behavior is assigned by mixing event handling super
+classes into an object using multiple inheritance.  Timer events are
+used to achieve animated effects, zooming in and out in particular.
+Filtered rendering and filtered event handling provide a means of
+communication between objects.
+
+An examination of the implementation of Tabula Rasa will show that
+each of these objects are implemented quite simply on top of the
+framework provided in chapter \ref{LowLevel}.
+
+ % Basic visual elements
+ % use of transparency
+ % event handling via mix-ins
+ % timer events for zooming
+ % calculation of zoom factors
+ % event symbols
+ % filtered rendering
+ % filtered event handling
+ % 
+
+ % Local Variables: ***
+ % mode: Outline ***
+ % outline-regexp: "[%]+" ***
+ % End: ***

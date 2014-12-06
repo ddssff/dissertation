@@ -1,0 +1,236 @@
+%    140 Conclusions
+\chapter{Conclusions}
+%%     20 Summary
+
+This dissertation has presented a working design for a new style of
+user interface development system called ``Pad''.  Just as certain
+elements are combined to create the Desktop interface, this new style
+interface has several distinguishing characteristics:
+\begin{itemize}
+\item It is a zoomable system, all data objects exist in a
+two dimensional floating point coordinate system,
+\item applications adopt a ``work-through'' mechanism, meaning that
+they adopt the metaphor of a transparent filter which is placed over the
+objects upon which they are to operate,
+\item a meaningful and consistent semantics is provided for the
+composition of multiple filters.
+\end{itemize}
+
+By adding these capabilities to the user interface substrate
+underlying the system's applications, it gives the applications a
+different flavor than those of conventional systems such as Microsoft
+Windows.  It is expected that applications will tend to be of a finer
+granularity and greater number, each one doing a smaller job.
+%%     11 Other instances of Pad-like mechanisms
+
+Certain existing commercial systems already incorporate some subset of
+these principles.  The success of plug-ins in the Adobe Photoshop
+image processing package is an important example.  Here the task of
+image processing makes filter composition a natural way of
+representing the task at hand.  An important element of the success of
+the Unix operating system is based on
+the composition of filters of text streams.  Again, the key is the
+ability to compose active components in a natural and meaningful way.
+%%     44 Tab
+
+\section{Tab}
+
+An example implementation named {\em Tab} has been created to
+experiment with the Pad style of user interface system.  Tab has
+evolved into a system which makes heavy use of advanced object
+oriented techniques, including multiple inheritance, multi-methods and
+delegation.  As a result, the components of Tab are written in a very
+abstract fashion, and are consequently highly reusable.
+
+In the Tab system, filters are composed using an object-oriented
+methodology.  Placing a filter over an object creates a new object,
+but the object shares both the methods and the data slots of the old
+object, so that changing the value of a slot in the new object changes
+the value of that slot in the old object, and vice versa, using
+delegation style inheritance.
+
+The type of the new object is defined in the filter, and it can have
+added slots and methods just as any subtype does.  This allows a very
+general type of filtering of the visual and interactive
+characteristics of the old objects.  The same delegation mechanism can
+be applied to the subtypes to create sub-subtypes, allowing the
+composition of multiple filters.
+
+What are the uses of this type of composition?  It is difficult to
+predict what sorts of applications might be developed using such a
+system.  However, the close relationship between delegation and other
+popular types of inheritance suggests that the technique could have
+widespread applications.  Consider an interface to a set of
+cartographic databases.  The base object could be a geometric model of
+the globe, implementing the type of projection which maps latitudes
+and longitudes onto a plane.  Then there could be a filter which
+represented a set of geographic data -- it would derived a new
+filtered object from the globe object to create the display.  Multiple
+filters representing could be placed over the same globe, and all the
+data sets would be visible.  Other types of filters could be used to
+select or modify different sets of data, or implement semantic
+filtering to adjust the amount of detail based on the viewing scale.
+%%%      1 Innovative? Reusable? Not reusable? 
+%%     13 Comparisons
+
+\subsection{Comparison to Pad++}
+
+The system most closely related to Tab is Bederson's
+Pad++\cite{Bederson94a}.  However, there are significant differences
+in design philosophy between to two systems.  There is little emphasis
+on filters in Pad++, and the mechanisms provided for implementing them
+are more primitive.  Also, the primitive objects in Pad++ are somewhat
+``heavier'' than those in Tab -- for example
+\begin{itemize}
+\item portals always have visible borders in Pad++, while the two
+      functions are separated in Tab.
+      This gives portals a more flexible role in Tab, where they can be
+      assembled into a variety of different derived forms.
+\item Pad++ portals always look at the top level, instead of being
+      attached to a camera object which can be anywhere in the stacking order.
+      This again makes Tab portals more flexible, where they can be used
+      as filters or magnifying glasses which see only the objects below
+      themselves.      
+\item Pad++ objects are assigned a layer number rather than being
+      inserted into different groups.  This means a hierarchical structure
+      can be constructed in Tab to implement features such as spatial
+      indexing.
+\item Pad++ objects have a ``sticky'' field which determines whether
+      they move or stay still when the main view moves.  This
+      functionality is implemented in Tab using a combination of a viewer,
+      and portal and a camera.
+\item In Pad++ damage is not clipped to the shape of the portals it
+      passes through; portal damage is on an all or nothing basis.
+\end{itemize}
+
+Thus, many of the features of Pad++ are constructed from simpler and
+more general elements in Tab.  On the other hand, more effort has gone
+into Pad++ to implement spatial indexing to handle large numbers of
+objects, and to implement better and faster rendering algorithms for
+text.  It may also be that some elements of Tab are inherantly less
+efficient that the corresponding but less general elements in Pad++.
+%%     59 Future Work
+\section{Remaining Issues and Future Work}
+%%%     22 Efficiency
+
+\subsection{Efficiency}
+
+One area where the current implementation could be improved is speed.
+Although the system has been ported from an interpreted Scheme system
+to a compiler, a number of optimizations still remain to be performed.
+The slot access and method lookup algorithms are considerably slower
+than the best available (for example, those described in \cite{PCL}
+and \cite{Murray:96}), and these operations currently dominate the
+system's execution time.
+
+The use of delegation is a step forward compared to the approaches to
+work-through interfaces described in \cite{Bier93}.  However, it is
+quite likely that a data-driven architecture might be required to give
+adequate performance in domains where the methods of filtered
+subclasses do complex calculations to produce intermediate results
+that could be cached.  This is in some sense related to the {\em
+Model-In Model-Out} approach to filtering describe in section
+\ref{Toolglass}, but it is superior in that better heuristics can be
+applied in selecting which data to cache and when and how to update
+it.
+%%%     14 Portability
+
+\subsection{Portability}
+
+Another area of interest in the short term is portability.  The system
+could reach many more users if it was ported to a Microsoft operating
+system, and the 32 bit Windows NT and Windows 95 systems offer
+sufficient support to make this task fairly easy.
+
+The most important work to be done is to design and implement
+applications to inhabit this framework.  This is the only way to truly
+demonstrate the viability of the concepts.  It is also the best way to
+develop the idioms and conventions that are needed to make a new
+interface paradigm serve all the user's needs.
+%%%     13 Asynchrony
+
+\subsection{Asynchrony}
+
+There are various areas where an asynchronous implementation could
+improve the usability of the system.  The system should be split into
+two cooperation threads, the first would process user input,
+distribute events and propagate damage, the second would do only the
+rendering.  By putting the rendering thread in a timed loop, we could
+prevent the system from spending its time updating any areas more
+often than visually necessary.  This would also make it somewhat
+easier to implement interruptible rendering, where new damage causes
+any refined rendering to abort even after drawing has begun.
+%%%     18 Coordinate Space
+
+\subsection{Coordinate Space}
+
+One problem which may emerge as zooming user interfaces come into
+heavier use is a peculiar aspect of the coordinate system which they
+typically define.  Although we have called it a two dimensional real
+number coordinate system, all current ZUI's actually implement a {\em
+floating point} coordinate system.  It is tempting to think of Pad
+space as vast and uniform, but while floating point numbers have a
+very high resolution near the origin, the local resolution declines
+quickly as you travel away from the origin.  If a collaborative
+version were implemented in which users began building persistent
+structures, it would probably not take long for someone to notice this
+granularity.  Some system for defining a local ``sub-origin'' with a
+nested floating point coordinate space is probably the easiest way to
+overcome this problem.
+%%%      8 Application Design
+
+\subsection{Application Design}
+
+Chapter \ref{Applications} presented a sample of some basic Tab
+application design techniques.  These include using constraints to
+make a magnifying glass, or deriving a editable text object from a
+regular text object.  The future of the Tab project depends on
+developing design techniques which exploit the multi-scale nature of
+Tab space and the benefits of work-through interfaces.
+
+\section{Lessons Learned}
+
+Finally, a summation of the most important lessons learned in the
+building of the Tab system and in this disseration.  The desktop
+interface has come to dominate our computer screens over the last
+quarter of a century, and has progressed little in that time.  The
+advances in hardware speed during that time have been extremely large;
+it may be that the time is approaching for a sudden shift to a new
+metaphor.  There is a tendency towards large, monolithic applications,
+a trend which is largely due to the lack of any mechanism for
+communication in the desktop metaphor between screen objects.  These
+large applications limit the user's opportunities for customizing the
+computing environment, and they raise the entry barriers for software
+companies by greatly increasing the effort required to produce a
+marketable product.
+
+A user interface metaphor is not a single idea, but rather a set of
+complementary mechanisms.  The desktop metphor is windows + icons +
+menus + pointer, while the Pad metaphor is semantic zooming + filters
++ constraint system.  This new metaphor increases the size of the
+space in which the user operates, and also provides a uniform metaphor
+for communication between screen objects.
+
+To support this type of interface, an implementation language which
+supports multiple inheritance, multi-methods and delegation
+inheritance is advantageous.  item The mechanisms required to
+implement a Pad system are more complex than those of desktop systems,
+so attention to implementation efficiency is important.  Increasing
+the efficiency of the language mechanisms is particularly beneficial.
+Multi-scale interfaces are a step towards a style of interface which
+exhibits the qualities of direct manipulation, spaciousness, and animation.
+      
+%     17 notes
+
+%%     12 Problem - the fixed geometry of Pad objects can be an impediment
+
+ % Suppose a zoomed or filtered version of an object wants to have a
+ % different aspect ratio from the non-filtered version?  E.g., an image
+ % file in a directory.  A small-scale representation might just show its
+ % name, which needs a wide shape, while the image itself which appears
+ % when we get closer might be tall.
+
+ % Local Variables: ***
+ % mode: Outline ***
+ % outline-regexp: "[%]+" ***
+ % End: ***

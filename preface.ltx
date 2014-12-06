@@ -1,0 +1,71 @@
+%%     16 preface
+ % \chapter{Preface}
+ % 
+ % Some people complain that Computer Science is not a science, and
+ % that the fact is pointed up by the presence of the word ``science''
+ % in the title.  I'm not sure whether these people want to change the
+ % name to emphasize that it is not a science, or to change it in
+ % order to cause it to become a science, or if they somehow want to
+ % change it into a science by some other means.  I, for one, revel in
+ % the non-science status of the field.  Kuhn tells us that all fields
+ % go through a pre-scientific stage, and describes the groundwork
+ % which is laid during that period for the science that is to follow.
+ % It is clear, however, that the idea of ``doing science'' in a field
+ % before it has {\em become} a science is an absurdity.
+ %
+ % Thus, I submit the following ``system thesis.''
+%%     34 abstract
+
+\renewcommand{\baselinestretch}{1.0}\tiny\normalsize
+\begin{tabbing}
+{\em Advisor:} \= \kill
+{\em Title:} \> Tabula Rasa: A Multi-scale User Interface System \\
+{\em Author:} \> David Fox \\
+{\em Advisor:} \> Ken Perlin
+\end{tabbing}
+\renewcommand{\baselinestretch}{\spacing}\tiny\normalsize
+
+%\begin{center}
+%{\bf Dissertation Abstract}
+%\end{center}
+
+This dissertation develops the concept of a zoomable user interface and
+identifies the design elements which are important to its viability as
+a successor to the desktop style of interface.  The implementation of
+an example system named {\em Tabula Rasa} is described, along with the
+design and implementation of some sample applications for Tabula Rasa.
+We show how programming techniques such as delegation and
+multi-methods can be used to solve certain problems that arise in
+the implementation of Tabula Rasa, and in the implementation of Tabula
+Rasa applications.
+
+Over the past thirty years the desktop or {\sc WIMP} (Windows, Icons,
+Menus, Pointer) user interface has made the computer into a tool that
+allows non-specialists to get a variety of tasks done.  In recent
+years, however, the applications available under this interface have
+become larger and more unwieldy, taking into themselves more and more
+marginally related functionality.  Any inter-operability between
+applications must be explicitly designed in.
+
+The Zoomable User Interface (ZUI) is a relatively new metaphor designed as
+a successor to the desktop interface.  It is inspired by the Pad system,
+which is based on a zoomable surface of unlimited resolution.  Just as
+the desktop interface has a set of essential elements, a ZUI has a set
+of elements each of which is vital to the whole.  These include
+\begin{list}{$\bullet$}{\itemsep 0pt}
+\item a zoomable imaging model,
+\item a persistent virtual geography for data objects,
+\item {\em semantic zooming} to optimize the utility of screen space,
+\item {\em work-through interfaces} for application objects,
+\item a constraint system for ensuring the consistency of the
+        interface elements.
+\end{list}
+These basic elements combine to produce an environment that takes
+advantage of the user's spatial memory to create a more expansive
+and dynamic working environment, as well as encouraging finer grained
+applications that automatically inter-operate with various types of
+data objects and applications.
+
+\pagebreak
+
+%%      4 Contents

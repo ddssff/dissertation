@@ -1,0 +1,393 @@
+\documentclass[12pt,letterpaper]{report}
+%\documentclass[letterpaper]{report}
+
+%\usepackage{times}
+%\usepackage{psfig}\pssilent
+\usepackage{html}
+\usepackage{hthtml}
+%\usepackage{url}
+%\usepackage[sectionbib]{chapterbib}
+\usepackage{caption}\captionsetup{labelformat=empty,labelsep=none}\usepackage{subcaption}\captionsetup[sub]{labelformat=empty}\renewcommand{\floatpagefraction}{.9}
+
+\begin{htmlonly}
+\def\url#1{\htmladdnormallink{#1}{#1}}
+\end{htmlonly}
+
+%\newcommand{\htmladdlink}[1]{{\tt #1}}
+
+\setcounter{secnumdepth}{3}
+
+\usepackage{anysize}
+ %             left   right   top  bottom
+% UMI margins
+\marginsize{1.6625in}{1.1in}{0.5in}{1.25in}
+% More pleasing, but page number too close to the bottom for UMI
+%\marginsize{1.6625in}{1.1in}{0.5in}{0.75in}
+
+% \usepackage[footnotesize]{caption}
+
+%%%
+%%% Date Calculation
+%%%
+
+\newcount\hour \newcount\minute
+\hour=\time  \divide \hour by 60
+\minute=\time
+\loop \ifnum \minute > 59 \advance \minute by -60 \repeat
+\def\thesistime{\ifnum \hour<13 \number\hour:%
+                      \ifnum \minute<10 0\fi
+                      \number\minute
+                      \ifnum \hour<12 \ am\else \ pm\fi
+         \else \advance \hour by -12 \number\hour:%
+                      \ifnum \minute<10 0\fi
+                      \number\minute \ pm\fi}
+
+\def\thesisdate{\ifcase\month\or
+January\or February\or March\or April\or May\or June\or
+July\or August\or September\or October\or November\or December\fi
+\space\number\day, \number\year}
+
+\newcount\dow
+\newcount\leap
+\newcount\x
+\newcount\y
+
+ % leap = year + (month - 14)/12
+\leap=\month \advance\leap by -14 \divide\leap by 12
+  \advance\leap by \year
+
+ % dow = (13 * (month + 10 - (month + 10)/13*12) - 1)/5
+\dow=\month \advance\dow by 10
+  \y=\dow \divide\y by 13 \multiply\y by 12
+  \advance\dow by -\y \multiply\dow by 13 \advance\dow by -1 \divide\dow by 5
+
+ % dow += day + 77 + 5 * (leap % 100)/4
+\advance\dow by \day \advance\dow by 77
+  \x=\leap \y=\x \divide\y by 100 \multiply\y by 100 \advance\x by -\y
+  \multiply\x by 5 \divide\x by 4 \advance\dow by \x
+
+ % dow += leap / 400
+\x=\leap \divide\x by 400 \advance\dow by \x
+
+ % dow -= leap / 100 * 2;
+ % dow = (dow % 7)
+\x=\leap \divide\x by 100 \multiply\x by 2 \advance\dow by -\x
+  \x=\dow \divide\x by 7 \multiply\x by 7 \advance\dow by -\x
+
+\def\thesisdayofweek{\ifcase\dow
+Sunday\or Monday\or Tuesday\or
+Wednesday\or Thursday\or Friday\or Saturday\fi}
+
+\def\timestamp{\thesistime, \thesisdayofweek, \thesisdate}
+
+ %%%
+ %%% End of Date Calculation
+ %%%
+
+%%      9 Boxedtext definition, from Shultis.
+
+\newlength{\boxedparwidth}
+\setlength{\boxedparwidth}{.92\textwidth}
+\newenvironment{boxedtext}%
+  {\begin{center} \begin{tabular}{|@{\hspace{.15in}}c@{\hspace{.15in}}|}
+                  \hline \\ \begin{minipage}[t]{\boxedparwidth}
+                  \setlength{\parindent}{.25in}}%
+  {\end{minipage} \\ \\ \hline \end{tabular} \end{center}}
+
+%%     16 deflist, from Shultis.
+\newlength{\defitemindent} \setlength{\defitemindent}{.25in}
+\newcommand{\deflabel}[1]{\hspace{\defitemindent}\bf #1\hfill}
+\newenvironment{deflist}[1]%
+{\begin{list}{}
+ {\itemsep=0pt \parsep=5pt \topsep=0pt \parskip=10pt
+ \settowidth{\labelwidth}{\hspace{\defitemindent}\bf #1}%
+ \setlength{\leftmargin}{\labelwidth}%
+ \addtolength{\leftmargin}{\labelsep}%
+ \renewcommand{\makelabel}{\deflabel}}}%
+{\end{list}}%
+
+ % Be more relaxed about image placement.
+
+\setcounter{topnumber}{5}
+\renewcommand{\topfraction}{.9}
+\setcounter{bottomnumber}{5}
+\renewcommand{\bottomfraction}{.9}
+\setcounter{totalnumber}{10}
+\renewcommand{\textfraction}{.05}
+\renewcommand{\floatpagefraction}{.85}
+
+ %%%
+ %%% LINE SPACING DECLARATIONS.
+ %%%
+ %%%
+
+ %  Set \spacing to 1.5 for a double spaced document.
+
+%\newcommand{\spacing}{1.0}
+%\newcommand{\spacing}{1.5}
+\newcommand{\spacing}{2.0}
+
+\newcommand{\doublespace}%
+  {\renewcommand{\baselinestretch}{\spacing}\tiny\normalsize}
+\newcommand{\singlespace}%
+  {\renewcommand{\baselinestretch}{1.0}\tiny\normalsize}
+
+\newenvironment{squotation}%
+  {\begin{quotation}\renewcommand{\baselinestretch}{1}\tiny\normalsize}%
+  {\end{quotation}\renewcommand{\baselinestretch}{\spacing}}
+
+\newenvironment{sverse}%
+  {\begin{verse}\renewcommand{\baselinestretch}{1}\tiny\normalsize}%
+  {\end{verse}\renewcommand{\baselinestretch}{\spacing}}
+
+\newenvironment{squote}%
+  {\begin{quote}\renewcommand{\baselinestretch}{1}\tiny\normalsize}%
+  {\end{quote}\renewcommand{\baselinestretch}{\spacing}}
+
+\newenvironment{slist}%
+  {\renewcommand{\baselinestretch}{1}\tiny\normalsize
+   \begin{list}{$\bullet$}{\itemsep 0pt}}%
+  {\end{list}\renewcommand{\baselinestretch}{\spacing}}
+
+\newcommand{\sfootnote}[1]{\renewcommand{\baselinestretch}{1}%
+  \footnote{#1}\renewcommand{\baselinestretch}{\spacing}}
+
+\newcommand{\ssection}[1]{\renewcommand{\baselinestretch}{1}%
+  \section{#1}\renewcommand{\baselinestretch}{\spacing}}
+
+\newcommand{\ssubsection}[1]{\renewcommand{\baselinestretch}{1}%
+  \section{#1}\renewcommand{\baselinestretch}{\spacing}}
+
+\newcommand{\sitem}[1]{\renewcommand{\baselinestretch}{1}%
+  \item{#1}\renewcommand{\baselinestretch}{\spacing}}
+
+\newcommand{\scaption}[1]{\renewcommand{\baselinestretch}{1}%
+  \caption{#1}\renewcommand{\baselinestretch}{\spacing}}
+
+\usepackage{graphicx}
+
+% \usepackage[footnotesize]{caption}
+% \setlength{\captionmargin}{20pt}
+
+%%
+%% Section headings
+%%
+ 
+%%% \font\@subheadfont=lcmssb8 scaled\magstep{1.5}
+%%% 
+%%% \def\subsection{\@startsection{subsection}{2}{\z@}{-3.25ex plus -1ex minus 
+%%%    -.2ex}{1.5ex plus .2ex}{\normalsize\@subheadfont\raggedright}}
+%%% \def\subsubsection{\@startsection{subsubsection}{3}{\z@}{-3.25ex plus 
+%%% -1ex minus -.2ex}{1.5ex plus .2ex}{\normalsize\@subheadfont\raggedright}}
+%%% \def\paragraph{\@startsection
+%%%      {paragraph}{4}{\z@}{3.25ex plus 1ex minus .2ex}{-1em}%
+%%% 	{\normalsize\@subheadfont}}
+%%% \def\subparagraph{\@startsection
+%%%      {subparagraph}{4}{\parindent}{3.25ex plus 1ex minus 
+%%%      .2ex}{-1em}{\normalsize\@subheadfont}}
+%%% 
+%%% % We need to force the section heading to all upper case.
+%%% 
+%%% %\let\ltx@@sect=\@sect
+%%% %\def\@sect#1#2#3#4#5#6[#7]#8{\ltx@@sect {#1}{#2}{#3}{#4}{#5}{#6}[#7]%
+%%% %	{\uppercase{#8}}}
+%%% %\let\ltx@@ssect=\@ssect
+%%% %\def\@ssect#1#2#3#4#5{\ltx@@ssect{#1}{#2}{#3}{#4}{\uppercase{#5}}}
+%%% 
+%%% \def\section{\@startsection {section}{1}{\z@}{-3.5ex plus -1ex minus 
+%%%     -.2ex}{2.3ex plus .2ex}{\normalsize\@subheadfont\raggedright}}
+
+
+% These excludecomment declarations omit various portions of the component
+% documents.  E.g., most of the Zoom package is omitted.
+
+\excludecomment{codeappendices}
+\excludecomment{interesting}
+\excludecomment{instrumentation}
+\excludecomment{xwindow}
+\excludecomment{extrascheme}
+\excludecomment{shmcompletion}
+
+\excludecomment{tabextra}
+\excludecomment{zoomextra}
+\excludecomment{about-the-description}
+
+\setlength{\itemsep}{0.2in}
+
+\newlength{\captsize}		\let\captsize=\footnotesize
+\newlength{\captwidth}		\setlength{\captwidth}{0.5\textwidth}
+\newlength{\beforetableskip}	\setlength{\beforetableskip}{.5\baselineskip}
+
+ %%%
+ %%% PAGE STYLE DECLARATIONS
+ %%%
+
+%\usepackage{fancyheadings}
+%\pagestyle{fancy}
+%\lhead[\rm\thepage]{\rm\rightmark}
+%\rhead[\sl\leftmark]{\rm\thepage}
+%\lfoot[]{\textsl{Draft of \timestamp}}
+%\cfoot{}
+
+\pagenumbering{roman}
+
+\title{\vskip -1in Tabula Rasa \\ A Multi-scale User Interface System}
+\author{by \\ \\ David Fox \\ \\}
+\date{A dissertation submitted in partial fulfillment \\
+      of the requirements for the degree of \\
+      Doctor of Philosophy \\
+      Computer Science \\
+      New York University \\
+      May 1998 \\
+      \vskip 1.0in\hskip 3in \hrulefill \\
+      \hfill {\small Dissertation Advisor}
+}
+
+\begin{document}
+\bibliographystyle{plain}
+
+\pagenumbering{roman}
+
+\maketitle
+
+% This page is required to make the page numbering of the front matter
+% work correctly.  There is supposed to be a command to do this, but
+% the obvious solutions aren't working.
+
+\begin{latexonly}
+\chapter*{Discard This Page}
+\end{latexonly}
+
+% This command gives us an unnumbered copyright page.
+
+\renewcommand{\thepage}{}
+\chapter*{}
+
+\centerline{\copyright David Fox}
+\centerline{All Rights Reserved, 1998}
+
+% Start double spacing and restore the page numbering for the preface.
+
+\doublespace
+
+\chapter*{Acknowledgements}
+\renewcommand{\thepage}{\roman{page}}
+\addcontentsline{toc}{chapter}{Acknowledgements}
+
+My thanks go to Nat Kuhn, who came to my eighth grade class in 1973 to
+recruit members for the R.E.S.I.S.T.O.R.S. computer club at Princeton
+University.  I would also like to thank Andy van Dam for his computer
+graphics course at Brown University, and Arun Netrivali who guided my
+research and helped me with my first publications at AT\&T Bell
+Laboratories.
+
+The person most responsible for the successful completion of my degree
+is the academy award winning Ken Perlin, who lured me back into
+academia and is both a wonderful advisor and a good friend.  Thanks
+also to Cliff Beshers, Matthew Fuchs, Jon Meyer, Don Mitchell and the
+many others who have been stimulating and inspiring friends and
+colleagues.
+
+Thanks go to the members of my thesis committee, Jack Schwartz, George
+Furnas, Chee Yap, and Ed Schonberg.  In particular, Bala Krishnamurthy
+invested a great deal of time and gave invaluable advice.
+
+I'd like to thank my parents Elaine Fox and David Raymond.  Finally,
+my loving appreciation goes to my wife Lydia Thompson.
+
+\chapter*{Dissertation Abstract}
+\renewcommand{\thepage}{\roman{page}}
+\addcontentsline{toc}{chapter}{Abstract}
+%\setcounter{page}{2}
+\input preface.ltx
+%\setcounter{page}{4}
+
+% Back to single spacing for the table of contents and pseudo-chapters.
+
+\singlespace
+\tableofcontents
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
+
+\doublespace
+\chapter{Introduction}\label{Introduction}
+\pagenumbering{arabic}
+\input chap1.ltx
+\chapter{Review of Literature}
+\input chap2.ltx
+\chapter{Tab Low Level Design}\label{LowLevel}
+\input chap3.ltx
+\chapter{Designing Tab Applications}\label{Applications}
+\input chap4.ltx
+\input chap5.ltx
+%\appendix
+
+%Articles that reference the 1993 Pad paper: 
+%\cite{Bartlett94}
+%\cite{Bartram95} 
+%\cite{Freeman95} 
+%\cite{Furnas95} 
+%\cite{Futura94} 
+%\cite{Hudson97}
+%\cite{Kramer94} 
+%\cite{Mackinlay94} 
+%\cite{Masui95} 
+%\cite{Lamping94} 
+%\cite{Schneider96} 
+%\cite{Strausfeld95} 
+%\cite{Welz95} 
+%\cite{Wittenburg95} 
+%\cite{Tioga97}.
+%
+%Articles not yet referenced in text:
+%\cite{Goldstein94}
+%\cite{Guthrie93}
+%\cite{Henderson87}
+%\cite{Johnson92}
+%\cite{Jones86}
+%\cite{Kell95}
+%\cite{Kiczales92b}
+%\cite{Kiczales92}
+%\cite{Knuth84}
+%\cite{Knuth92}
+%\cite{Lakoff80}
+%\cite{Laurel90}
+%\cite{Laurel91}
+%\cite{Laurel94}
+%\cite{Linton92}
+%\cite{Linton93}
+%\cite{Mackinlay91}
+%\cite{Mitchell90}
+%\cite{Morrison90}
+%\cite{Muthu95}
+%\cite{Nelson74}
+%\cite{Nelson87}
+%\cite{Nelson90}
+%\cite{Perlin93}
+%\cite{Perlin94}
+%\cite{Plaisant94}
+%\cite{Ramsey94}
+%\cite{Ramsey97}
+%\cite{Rao94}
+%\cite{Rennison94}
+%\cite{Ritchie84}
+%\cite{Robertson93b}
+%\cite{Samet84}
+%\cite{Schiefler92}
+%\cite{Schneider96}
+%\cite{Schneiderman92}
+%\cite{Smith95}
+%\cite{Stallman81}
+%\cite{Stone94}
+%\cite{Strausfeld95}
+%\cite{Sutherland63}
+%\cite{Turo92}
+%\cite{Ungar87}
+%\cite{Welz95}
+%\cite{Wittenburg95}
+%\cite{vanDam84}
+
+\addcontentsline{toc}{chapter}{Bibliography}
+\singlespace
+\bibliography{diss}
+\end{document}

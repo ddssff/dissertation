@@ -1,0 +1,646 @@
+%    687 Introduction
+%%    107 Background
+%%%     14 Road map
+
+The purpose of this dissertation is to introduce Tab, an example of a
+new style of user interface system which presents the user with a
+dynamically zoomable space.  This introductory chapter describes Tab
+and discusses why it is interesting, particularly in relationship to
+the leading user interface style of the past twenty years, the desktop
+model.  The second chapter considers the historical underpinnings of
+each of the major elements of system.  The third chapter presents a
+description of the design of the low level mechanisms of an
+implementation of the system called {\em Tabula Rasa} (or henceforth
+{\em Tab}), while the fourth chapter demonstrates how those low level
+mechanisms are used to implement some conventional user interface
+objects and some basic multi-scale applications.  Finally, a
+concluding chapter summarizes and suggests some future directions
+for zoomable user interface (ZUI) systems.
+
+%%% 55 What is a user interface model/style?
+
+ % [Metaphor references:  HCI2000 p. 79, Laurel, ]
+
+The most common user interface style used in today's personal
+computers is the {\em Desktop Metaphor}.  Systems which adopt this
+style are known as desktop systems because of the resemblance of the
+overlapping windows that appear on the user's screen to overlapping
+sheets of paper on a desk.  The desktop interface achieves its power
+by bringing together several elements which, in combination, create a
+new and compelling experience for the user.  The WIMP
+(Window/Icon/Menu/Pointer) system at once enables the user to perform
+multiple tasks (by using multiple windows and icons), relieves the
+user of much of the burden of learning and remembering how to use
+applications (by providing a menu-driven interface), and provides a
+more dynamic, tactile and intuitive type of interaction (by using a
+mouse.)  All three of these elements were necessary to create a
+successful interface -- each complements the other two in a variety of
+ways.  Windows multiply the number of applications that can be
+running, increasing the burden of memorization that menus help to
+relieve.  Without a mouse the manipulation of windows could become an
+arduous task.  The mouse makes it much easier to access menus specific
+to a particular window, and so on.
+
+In this dissertation a new style of user interface system is
+presented which embodies a new collection of user interface elements
+which complement one another in a way similar to the way
+windows, menus and pointers do.  This system has three design elements
+and an underlying programming language methodology.  These are the
+design elements:
+\begin{list}{$\bullet$}{\itemsep 0pt}
+\item A resolution independent virtual surface with persistence,
+\item portals and filters,
+\item semantic zooming, and
+\item a constraint system.
+\end{list}
+The underlying programming language methodology of the {\em Tab} user
+interface development system is the use of multi-methods and a form of
+inheritance called {\em delegation}.  These elements will be discussed in
+detail in the sections that follow.
+%%%     50 User Interface Metaphors
+\section{User Interface Metaphors}
+
+It has been pointed out by some authors, e.g. Ted
+Nelson~\cite{Nelson90}, that the similarity of a desktop style user
+interface to an actual desktop breaks down very quickly (real paper
+doesn't pop to the top of a stack when you click on it), while others
+have noted that slavishly attempting to duplicate the features of a
+real desktop would defeat the whole purpose of putting a system on a
+computer.  As Gentner and Nielson note in~\cite{Gentner96}, if your
+text editor functions exactly like a typewriter, why not just use a
+typewriter?
+
+This engenders two observations.  First, the word ``metaphor'' is
+ill chosen.  Metaphor is a poetic device, drawing an absolute
+identity between two concepts.  ``The moon is a ghostly galleon'',
+rather than ``the moon resembles a ghostly galleon.''  Brenda
+Laurel~\cite{Laurel91} points out that {\em simile} is a more accurate
+description of the relationship between a desktop and a desktop-style
+user interface system.  The second observation is that the only
+interesting things about any computer system are the ways in which it
+{\em departs} from the real-world system on which it is based.  We
+incorporate a simile into a system in order for the user to build a
+mental model of that system.  The user then uses that model to reason
+about the system and deduce its untried capabilities.  The desktop
+model tells us that ``this system is like a desktop, but without the
+physical limitations of a real desktop, {\em and} with the
+capabilities (and many limitations) familiar from older command-line
+oriented systems.''  Thus, a reasonable user will not be surprised if
+the screen representation of a folder fails to fatten as we add
+documents, even though a real file folder would.  A user experienced
+with older computer systems would correctly expect that a desktop
+system might run out of storage space suddenly, while a real desktop
+has a more gradual storage exhaustion failure mode.
+
+Indeed, the passage of time allows greater and greater departure from
+the desktop model as incremental improvements are discovered and
+added, and users become accustomed to the departures already
+incorporated.  Nelson rejects the whole notion of metaphor in system
+design, preferring systems that are designed with a consistency from
+which the user can build a mental model, but with no real-world
+referent.  He refers to this as the principle of {\em
+virtuality}~\cite{Nelson87}, but this appears to be more a rejection
+of slavishly metaphorical design rather than a serious proposal.
+Linguistics and cognitive science argue against the ability of any
+human to think even a single thought without reference to
+simile.~\cite{Lakoff80}
+%%    148 UI on a virtual surface
+\section{The Virtual Surface}
+%%%     19 What's a virtual surface
+
+ % [Schneiderman says Nelson defines virtuality ``a representation of
+ % reality that can be manipulated.''  Must check this.]
+
+ % \section{The History of Tab}
+
+The first element of the Tab system is resolution independence.  While
+the historical underpinnings of each of the elements are discussed in
+detail in chapter two, the notion of incorporating resolution
+independence into a user interface system is inherited directly from
+the Pad system.  Pad is a name coined by Ken Perlin in 1989.  It has
+been used to refer to a series of systems developed at New York
+University, and one system developed jointly with the University of
+New Mexico, each with a different feature set.  A paper by Ken Perlin
+and myself presented at the 1993 SIGGRAPH conference~\cite{Perlin93}
+described the notion and the system as it was at that time.
+
+In his book ``Designing the User Interface''~\cite{Schneiderman92} Ben
+Schneiderman writes that there are two user interface techniques that
+are widely reported to engender not only acceptance, but often an
+enthusiastic response.  The first is direct manipulation
+(\cite{Schneiderman92}, p. 202), which is a central component of the
+desktop system.  The second technique is to design a system which
+presents the user with a large navigable space (\cite{Schneiderman92},
+p. 222.)  The Pad system is intended to capitalize on both these
+techniques.  The central element of the Pad model is a virtual surface
+capable of nearly limitless detail.  This surface is called {\em
+virtual} because such a surface cannot be adequately represented by
+any foreseeable display equipment.  Even if it could, the human eye
+cannot apprehend the detail such a display would present.  Instead,
+the system creates the impression of limitless detail by allowing the
+user to navigate while looking down at the surface.  The user can move
+laterally to see different parts of the surface, or can change
+altitude, up to see a larger portion of the surface, or down to see a
+smaller portion in greater detail.  %%% 20 What good is a virtual
+surface?
+
+Using a low resolution device (such as a computer monitor) to create a
+high resolution experience of a surface is analogous to the way humans
+use their eyes to create a high resolution experience of their
+environment.  The eye has a very small area of high resolution in the
+center of the retina surrounded by an area of low
+resolution.\sfootnote{There are about 150,000,000 receptors in the
+human eye, but only about 1,000,000 optic nerve fibers, so the number
+of ``pixels'' is several million, about that of a high quality
+computer monitor.
+ % Furthermore, the number of color receptors (cones)
+ % is about one twentieth the number of intensity receptors (rods.)  The
+ % receptor density near the retina's center (the fova) is about twenty
+ % times the density of the outermost edge (the perifovia, which
+ % surrounds the intermediate parafova.)
+} 
+It is also able to move very
+quickly, (about 500 degrees per second), and these two features
+combine to create the experience of being immersed in a world of great
+visual detail.  This suggests that an important element of a system
+based on a high-resolution virtual surface is that its navigation
+system be extremely responsive.\label{Human-Eye}
+%%%      2 Fitts law analogy
+ % how fast can we navigate a space the size of the WWW?
+ % Pad's space could do the Internet justice
+
+ % Fitts, P.M. & Peterson, J.R. (1964). Information Capacity of
+ % discrete motor responses. Journal of Experimental Psychology, V67,
+ % 103-112
+
+ % (The smaller the target the longer it takes to reach it.)  Fitt's
+ % Law states that the distance to move your finger across a distance
+ % D to a target of size S is I x log2(D/S + 0.5), where I is a speed
+ % constant (usually 100 ms)
+
+ % Douglas J. Gillan, Kritina Holden, Susan Adam, Marianne Rudisill
+ % and Laura Magee, ``How Does Fitts' Law Fit Pointing and
+ % Dragging?,'' Proceedings of ACM CHI'90 Conference on Human Factors
+ % in Computing Systems, Fitts Session, 1990, pp. 227-234.
+%%%     38 Objects have a persistent geography
+
+ % [There's something missing here, more about responsiveness,
+ % the referent of "this model"]
+
+We claim that this model has departed from conventional systems to the
+point where the desktop simile becomes irrelevant.  The amount of
+space on our virtual surface is so vast that it could be used to
+represent anything, or perhaps everything.  Instead of the few icons
+and windows we find on the screen of a desktop system, our virtual
+surface could hold {\em all} of the user's files.  The user zooms in
+towards the folder that contains the file of interest, and at a
+certain point the individual files appear and the user zooms in on one
+particular file.  When it becomes large enough to work with, the user
+can read or edit the file.
+
+Note that this arrangement implies a geography for the user's data
+objects that is persistent.  Desktop systems tend to use their surface
+for relatively transient objects, just as a real desktop would -- a
+document being edited, a window onto an on-line service and perhaps
+one or two others.  The amount of space available on a virtual surface
+makes this economy unnecessary, the user travels to the document of
+interest rather than bringing it onto the desk from someplace
+``outside''.  Furthermore, the size of the virtual surface makes a
+persistent geography natural to the user trying to locate objects on
+it.  Humans have developed a great ability for navigating in a
+familiar geography, and a Pad style system capitalizes on this
+ability.
+
+The Pad surface could also be used to hold other types of hierarchies.
+A shared collaborative version could partition the surface among a
+large number of users.  Individual users would never run out of space
+because they could always just shrink everything down by half.  A
+distributed version of Pad could represent the Internet as a set of
+nested domains.  Zooming in on a particular machine might reveal areas
+for that machine's users, analogous to todays World Wide Web sites,
+and if the viewer is privileged, system administration tools and
+information might become available, and so on.
+%%%     41 2.5 dimensional space
+
+Pad was originally conceived to implement a virtual surface rather
+than a three dimensional space, and this places it somewhere between
+desktop systems and virtual reality systems in terms of the ``Looking
+at'' vs. ``Being in'' dichotomy discussed by Schneiderman
+(\cite{Schneiderman92}, p. 223.)  Pad space is sometimes
+referred to as a 2.5 dimensional space, which can be thought of as a
+three dimensional space where the viewer is always looking straight
+down, and the objects in the space are all flat and face straight up.
+Of course, these flat objects could be displaying perspective drawings
+of three dimensional objects.  The distance of the objects from the
+viewer has no effect on their size, just as windows in a conventional
+desktop interface stay the same size even if they are pushed to the
+bottom of the stack.  This is to say, the system uses an orthogonal
+projection rather than a perspective projection.  As in a desktop
+system, there is a total ordering on the objects in the space which is
+called the stacking order.  Rather than being determined by the
+viewer's distance, each object contains a bounding rectangle that
+defines its size and position independent from its altitude, and a
+transformation matrix that converts the coordinate system of the space
+the object exists in to the object's private coordinate system.
+
+We believe that this type of space, where the size of an object is
+decoupled from its distance, has advantages over a true three
+dimensional space as an environment for displaying and storing
+information.  It means the visual size of an object can be controlled
+by the user, it becomes a design element of the user's graphical
+computing environment.  While we might add the same feature to a fully
+three dimensional space, it would be that much more confusing because
+the depth cues in a such a space are that much stronger than in our
+2.5 dimensional space.  This 2.5 dimensional space also reduces the
+tendency one has of becoming disoriented or lost in a fully three
+dimensional space, while still freeing the user from some of the
+restrictions of the two dimensional space embodied in conventional
+desktop systems.  Finally, we decided that the additional computer
+power required to implement a fully three dimensional system would be
+better devoted to improving the responsiveness of this simpler imaging
+model.
+%%%     13 Pad as a user interface
+
+Tab is an attempt to carefully consider what is necessary to make a
+successful user interface system based on Pad's virtual surface; that
+is, a system that might successfully compete with the commercial
+systems.  This goal brings up a number of new considerations that
+would not apply to a system that used the Pad virtual surface to
+implement a particular application.  The main task is to devise an
+application programmer interface (API) which allows programmers to
+author interactive software to inhabit this virtual surface.  The API
+must address the questions of how to express both the appearance and
+the interactive behavior of Pad applications.
+%%    147 Portals and Filters
+
+\section{Portals and Filters}
+%%%     17 Needed to relate objects distant in position and/or scale
+
+One of the features of the desktop system is the ability to juxtapose
+various objects so they can be compared, or so one can be referred to
+while working on the other.  The Tab system must match this feature
+within its own paradigm.  In a desktop system this is accomplished by
+loading the objects into windows controlled by applications and
+dragging windows around.  Because we wish to maintain a permanent
+geography and avoid moving objects, a mechanism called a {\em portal}
+has been adopted from the Pad system to allow users to relate objects
+distant in position or scale or both.  In the Tab system, a portal can
+be linked to any object, and it displays whatever is below that object
+(Figure~\ref{PortalFigure}.)  Portals are usually linked a simple
+invisible object type called a {\em camera}.  Not only can a user see
+through a portal, but also can interact with the objects there just as one
+interacts with objects directly, that is, if the user's input events
+hit the monitor they are ``transported'' to the camera and pass to the
+objects below it.
+\begin{figure}[HTBP]
+\centerline{\includegraphics[width=\textwidth]{fig/portal.eps}} \caption{A
+portal is a camera/monitor pair.  Objects visible below the camera
+appear on the surface of the monitor, scaled to fit.  Furthermore,
+events which hit the surface of the monitor are transmitted to the
+objects below the camera.}  \label{PortalFigure} 
+\end{figure}
+
+%%% 42 Why does Microsoft Word have a word counting command?
+
+We also need to decide how the notion of applications translates into
+the Pad model.  By this we mean tools that can be applied to data
+such as text, images or a spreadsheet.  Most desktop interfaces
+associate a primary tool with each data object.  For example, under
+Microsoft Windows every document whose filename ends with {\tt .doc} is
+usually assigned Microsoft Word as a default application that is
+invoked when the icon for that document is double clicked.  However,
+there may be a number of tools each of which operate on a particular
+data object in a different way.  There may be one tool that analyses
+the document's grammar and computes word count statistics, another
+which could be used to edit figures the document contains, and so
+on.  There seems to be a tendency for a desktop model application to
+try to do all of these tasks in a single package, while the older
+command-line model encouraged separating these tasks out into smaller
+packages each of which (as the slogan goes) ``do one thing and do it
+well.''%
+\sfootnote{While a desktop user interface has been added to Unix and
+desktop-style applications are available for it, there is still a
+thriving Unix sub-culture that remains loyal to command-line oriented
+tools such as Knuth's TeX~\cite{Knuth84}, the Emacs
+editor~\cite{Stallman81}, {\tt wc} for doing word counts, and so
+on.~\cite{Ritchie84}  Emacs is interesting as an example of a tool which
+goes well beyond the command line interface but in a direction
+entirely different from the desktop model.  If the desktop model is a
+``point and click'' interface, the Emacs model might be called a ``cut
+and paste'' interface.  The user can capture text strings or sequences
+of keystrokes and combine them into powerful operations.  If that is
+not sufficient, there is a complete implementation of Lisp that can
+be used to extend the system.  This type of programmability is an area
+in which the desktop interface is notoriously weak.~\cite{Gentner96}}
+{\em It is as if in order to escape the deficiencies of the desktop
+interface all the functionality of the system has drained down into
+each individual application.}  One reason for this tendency may be
+that there is no intuitive idiom in the desktop model for applying one
+of several tools to an object, let alone an idiom for applying several
+tools in ``sequence'' as in a Unix pipeline.
+%%%     15 What is a filter?
+
+\label{Filters}
+
+In order to bring this capability to the user interface it was decided
+to allow the data to remain stationary on the surface and bring the
+tool to the data object using a variant of the portal called a {\em
+portal filter} or simply {\em filter}.  This is a portal which
+``understands'' a certain type of object and causes objects of that
+type to have a different appearance when viewed through it.  A filter
+may also ``mediate'' the input events that pass through it on the way
+to that object, changing them into commands the object understands.%
+\sfootnote{In object oriented terms, the filter intercepts the input
+events and directly invokes the methods of the data object.}  By
+convention, filters in pad usually directly display the area they
+cover, rather than some remote area as portals often do.  (This is
+enforced using the constraint system, another Tab subsystem.)
+%%%     10 Example
+
+\label{WordProcessorExample}
+As an example, a user might place a word processing filter on top of a
+text file.  When this happens, a cursor appears in the text.  Now when
+the user's mouse is positioned over both the filter and the text file
+(that is, inside their intersection), text is inserted into the data
+file as the user types.  If more than one text file appears beneath
+the filter, each has a cursor, and editing commands go to whichever
+one contains the mouse cursor.
+\begin{figure}[HTPB]
+\centerline{\includegraphics[height=3in]{fig/text-editing.eps}}
+\caption{A text editing filter is placed over two text objects.}
+\label{text-editing}
+\end{figure}
+%%%     14 Division of information between filter and filtered
+
+In order to achieve the most versatile model for filter behavior it is
+important to carefully consider what information belongs to which
+object.  In this example, the text belongs to the data object, while
+the cursor and its position should be a part of the filter.  We don't
+want the data object to have to carry any information which is
+specific to the filter's application.  There might be another filter
+which when placed over the text file highlights spelling errors or
+displays a grammatical analysis of the document -- such a filter would
+have no use for a cursor, and it would be a waste for this information
+to be stored in the document.  This also means that the filter needs
+to store a set of cursors, one per text file that appears below it.  A
+general mechanism for managing per-filtered-object information is
+discussed in section \ref{Delegation}.
+%%%     22 When does object-specific data disappear?
+
+If we are editing a document and we move the editor filter off that
+document and then back on, we would probably like the cursor to
+re-appear in the same position we left it.  This means we need to
+retain the cursor information associated with the document even if the
+filter moves away from it.  One might worry that a filter will
+accumulate thousands of cursor positions, but this is less likely to
+become a problem if we use semantic zooming to insure that no cursor
+is generated for documents that occupy too little of the screen to be
+comfortably edited.  The cursor is a small piece of data, but other
+filters might generate much larger amounts of information associated
+with each data object -- for example, an image processing filter might
+generate modified versions of the image it is covering.  This issue is
+domain dependent, so it is important that the API provide tools to
+allow the Pad application programmer to implement various policies
+regarding when to retain or discard this data.  This includes
+notification of when an object enters or leaves the filter, timers
+which notify the filter when an object has been absent for a certain
+period, and a least recently used queue to decide which data can most
+safely be discarded.
+%%%     14 Are filters persistent?  (Yes.)
+
+It should be noted that portals and filters, like data objects, are
+persistent objects in the Pad system.  In fact, there is no reason to
+introduce the notion of a ``transient'' object.  Such an object is an
+artifact associated with the idea of turning off the computer, and
+with the distinction between temporary and permanent memory.  We do
+not believe that this distinction has any value to the user, and
+therefore its existence should be made transparent.  This decision
+means that filter based applications have no {\em save} command - the
+document should always be in a ``safe'' state, and older versions are
+made available through use of undo commands and the ability to revert
+to check-pointed versions of the document.
+%%     93 Semantic Zooming
+
+\section{Semantic Zooming}
+
+In designing a Pad API, our first observation is that rendering
+commands and event positions must be performed in a floating point
+space.  This brings up some difficulties with regards to rendering
+operations which have generally been regarded as pixel-oriented - for
+example, images are usually stored as a grid of pixels, and thus have
+a ``natural size'' with relation to the screen's pixel grid.  Also,
+text rendering is usually tuned carefully to the exact size in pixels
+that the character will appear -- even if the characters are stored as
+filled shapes constructed from polygons and splines, the font will
+contain hints about how to make sure that artifacts don't show up when
+converting to a pixel representation.  A Pad system needs to take on
+some tasks that are usually handled by the application in systems
+where the rendering model gives access to the screen's pixels.
+
+Furthermore, applications still need to know how large they appear on
+the user's screen in order to avoid wasting time and screen space
+rendering detail that is too small to be seen, or too large to be
+interesting.  For example, a Pad representation of a text file might
+show just the file's name while the user was at a distance where the
+file is less than an inch across.  When the file is a couple of inches
+across it might display some details about the file such as size,
+permissions and ownership.  Only when it became five or six inches
+across would it display the textual content of the file.  Finally, it
+would fade out entirely if it got too big, perhaps when the characters
+exceeded an inch in height.
+
+We have coined the term ``semantic zooming'' to describe this
+behavior.  It is intended to try to optimize the information carrying
+capacity of the user's screen in a multi-scale system, just as
+anti-aliasing optimizes a screen's image displaying ability.  The API
+must include a mechanism by which the application can determine its
+screen size.  Beyond that, however, this topic is mostly one
+concerning the design of Pad applications, rather than how to solve
+technical issues.  A couple of examples of applications that
+illustrate some issues regarding semantic zooming are:
+
+\paragraph{Computer Cartography}(figure~\ref{DelhiMaps}) - generating
+maps from a cartographic database at an arbitrary scale involves a
+number of decisions such as which features to keep or omit and how to
+do label placement with the features that are selected.  The
+representation of a given feature may also change as the scale changes
+-- a small city will be a filled shape on a small scale map, while at
+a scale where it is reduced to less than a pixel size it might
+continue to appear as a labelled dot due to the fact that the map
+reader's interest in the town may outweigh its apparent size.
+\begin{figure}[htbp]
+\centerline{\hfill
+  \includegraphics{fig/delhi2-detail2.ps}\hfill
+  \includegraphics{fig/delhi1-detail.ps}\hfill}
+\caption{Semantic Zooming in Cartography}
+\label{DelhiMaps}
+\end{figure}
+
+\paragraph{A spreadsheet} is visually a table, but it contains a data
+dependency graph that is usually only visible through interpreting the
+row and column labels or through typographic conventions.  In most
+spreadsheets, several rows of data will be summed, and the sum will be
+placed in a row below a double line.  Then several of these sums will
+themselves be summed and the grand total will appear at the bottom.  A
+similar arrangement occurs in the columns.  Two levels of summing is
+usually the limit for a given spreadsheet, and at that point the sum
+might be carried over to a row of another document.
+
+In Pad this hierarchy might be represented differently, in a single
+document.  The rows of the top level spreadsheet would resolve into
+multiple rows as you approached, allowing an unlimited depth.  You
+would want separate control of the horizontal and vertical zooming so
+you could adjust the temporal resolution separately from the
+conceptual hierarchy represented in the rows.  Portals could be used
+to keep the row and column labels visible even when you were deep
+within the table -- one portal would display the cell entries while
+the constraint system would cause the other two to track the row and
+column labels.
+
+This example points up the importance of transitions in semantic
+zooming -- one of the most important things to be conveyed by the
+spreadsheet is the relationship between the summed rows and the sum.
+Both must be clearly visible at the same time for the viewer to relate
+the two.  
+%%%     11 Now objects can appear simultaneously at different sizes
+
+ % Note that the existence of portals has implications for the design of
+ % the semantic zooming mechanism described above.  Specifically, objects
+ % can now appear simultaneously on the screen at more than one scale.
+ % If a Pad application holds any state information, that state must
+ % either be unrelated to the object's current scale, or else there must
+ % be multiple copies of that state for each scale at which the object is
+ % currently appearing.  The semantic zooming mechanism should be
+ % designed to facilitate this requirement.
+%%     19 Constraint system
+\section{Constraints}
+
+We have already encountered one situation where we need to maintain a
+constraint -- the convention that the cameras should remain directly
+below their associated portal if that portal is a portal filter.  A
+constraint system makes it easy to tie various components into a
+cooperating system, and help system components from falling
+prey to the syndrome of increasing complexity described in section
+\ref{Filters}.
+
+Actually, the resolution independence of the Tab system makes the
+satisfaction of constraints much simpler than in many pixel-based
+systems.  This is because it is never necessary to use complicated
+algorithms to position object in a pleasing way - things can always be
+fit into the allotted space, and the user can move closer if
+necessary.  Therefore, the Tab constraint system has so far remained
+quite rudimentary, implemented using a simple call-back keyed to three
+important types of events in the system: an object being inserted, an
+object being removed, or an object whose geometry changes.  These are
+the principal types of changes whereby one object might affect
+another.  It is also possible for an object to control another object
+of which it has direct knowlege.
+%%     80 Delegation, Multiple Inheritance and Multi-Methods
+\section{Multi-Methods, Multiple Inheritance and \\
+			Delegation}\label{Delegation}
+%%%     33 How do filters compose?
+
+Multi-methods, also known as multiple dispatch, is a feature of some
+object-oriented programming systems whereby a call to a generic
+function is dispatched to a particular method based on the types of
+{\em all} of its arguments - not just the first argument as in
+languages such as C++ or Java.  One language which provides
+multi-methods is CLOS (the Common Lisp Object System).  To dispatch a
+call, a list of all the methods which are applicable to the argument
+types is made, and then this list is sorted by the specificity of each
+method's formals in relation to the types of the call's actuals.  Then
+the most specific method is invoked.  Multi-methods are a perfect
+mechanism for implementing filters, because it is necessary to
+dispatch each call on the basis of the type of object and the type of
+filter.
+
+Multiple inheritance is another feature of the object-oriented
+programming model which allows classes to inherit data and methods
+from more than one superclass.  This mechanism is well suited to
+composing various types of interactive behaviors in a single object,
+particularly in combination with multi-methods.  For example, in Tab
+the interactive behavior of an object is determined by a component of
+the class {\tt <handler>} (as in ``event handler.'')  There are many
+subclasses derived from {\tt <handler>} to describe different types of
+interactive behavior.  For example, the {\tt <drag-bindings>} class
+implements the ability to drag and scale an object using the mouse,
+while we might have a class {\tt <text-editor-bindings>} which
+implements keyboard commands to edit text, such as backspace, delete,
+cursor motion and so on.  If we want an object to have both these
+behaviors we can simply create a new class with both {\tt
+<drag-bindings>} and {\tt <text-editor-bindings>} as super-classes and
+allow the multi-method mechanism to locate the correct method for each
+event.
+
+The third and most unusual object-oriented feature used in the Tab
+implementation is delegation.  This is a form of inheritance which is
+per-instance rather than per-class.  Few object oriented languages
+implement delegation -- there is actually no built-in support for
+delegation in CLOS or STklos, our implementation language.  However,
+we will see in section \ref{STklosDelegation} how delegation can be
+implemented in STklos.  It allows us to implement a macro similar to
+{\tt define-class} named {\tt define-filtered}, in honor of its
+central role in implementing the Tab filtering mechanism.  An instance
+of a class created using {\tt define-filtered} is constructed from an
+{\em existing instance} of the parent class, along with the usual
+constructor arguments.  References to the slots the new instance
+inherited from the parent class are actually references to the slots
+of the parent {\em instance}.  This corresponds to the relationship
+between an object and that object as seen through a filter.
+
+As mentioned above, the filtering mechanism seems to hold some promise
+of restoring the ability to compose tools lost in the move from the
+Unix command line environment to the desktop environment.  This
+mechanism should enable us, for example, to place a ``find the
+adjectives'' filter on top of a document, and a ``count the words''
+filter on top of that to display the number of adjectives in our
+document.  The same ``count the words'' filter should, if placed
+directly on the document, display the total word count.  This can be
+accomplished by having the adjective filter derive a filtered class
+from the text object which adds slots and to and overrides methods of
+the original class so that it behaves as a document which contained
+only the adjectives of the original document.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[height=3in]{fig/filter-composition.eps}}
+\caption{Composed filters can create multiple filtered objects.}
+\label{FilterComposition}
+\end{figure}
+The filtered object is created the first time the system requests it
+-- that is, the first time an event hits the filter responsible for
+creating it.  As shown in figure \ref{FilterComposition}, filter 1
+might create filtered object 1 from the text object, while filter 2
+might create filtered object 2 from the still-exposed portion of the
+text object.  Furthermore, if filter 2 happened to understand filtered
+object 1 it would then create from it filtered object 3.  The filter's
+decision of whether to create the filtered object is made via another
+use of multi-methods - if there is a {\tt get-filtered-object} method
+for that particular combination of filter and original object the
+return value is the filtered object.
+%%     11 Goals of the Dissertation (empty)
+ % \section{Goals of the Dissertation}
+%%%      6 Propose Pad as a successor to the Desktop / WIMP style of interface
+%%%%      1 Age of Desktop/WIMP interface (20 years)
+%%%%      1 The nature of the space created by WIMP systems
+%%%%      4 Criticisms of WIMP \cite{Gentner96}
+%%%%%      1 WIMP objects are very heavy-weight - heavier all the time
+%%%%%      2 Compare Interview's fly-weight objects \cite{Schneiderman92} p. 204
+%%%      3 Describe Pad Goals and Principles
+%%%%      1 A larger space for the user to operate in
+%%%%     16 Move away from limiting metaphors
+%%     15 Summary
+\section{Summary}
+
+This introductory chapter has introduced Tab in the context of 
+existing user interface metaphors and similes.  The basic elements of
+the Tab system have been discussed at some length, including the
+virtual surface, portals and filters, semantic zooming, and
+constraints.  It is important to stress that the value comes from
+combining all these techniques in a single system, just as the
+combination of windows, icons, pointers and menus let to the success
+of the desktop interface style.
+
+ % Local Variables: ***
+ % mode: Outline ***
+ % outline-regexp: "[%]+" ***
+ % End: ***

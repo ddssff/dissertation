@@ -1,0 +1,598 @@
+%    589 Review of Literature
+
+This chapter reviews the literature relating to each of the topics
+identified in the introduction as being central to the design of the
+Tab system.  The earliest known examples of real time interative
+computer graphics include the SAGE Air Defence System
+(1955)~\cite{Everett57}, which allowed the user to point at targets
+with a light pen, and the DAC-1 (Design Augmented by Computers) a
+computer drawing system created by General Motors and IBM which did
+real time 3-D rotation of a description of an automobile. It was
+finally unveiled at the Joint Computer Conference in Detroit in 1964.
+Apart from these secret projects, interactive computer graphics a
+scientific discipline began in 1962 with Ivan Sutherland's Sketchpad
+system~\cite{Sutherland63}.  With his doctoral dissertation, the
+notions of direct manipulation, display lists and instancing, and
+constraints were introduced.  In 1968 Douglas Englebart, then of SRI,
+showed a user interface system at the Joint Computer Conference which
+included a keyboard, keypad, mouse, and windows, and demonstrated a
+word processor, a hypertext system, and a system for remote
+collaborative work.  This is the first user interface system based on
+direct manipulation.  By ``user interface system'' we mean the system
+which mediates all the user's interactions with the computer, as
+opposed to an interactive computer graphics program.  In 1972 work
+began on the Xerox Alto, a computer system intended for research which
+incorporated a bit-mapped raster display, three button mouse, and
+Ethernet network connectivity.  Its graphical user interface (GUI) was
+implemented using the Smalltalk object-oriented programming language.
+This machine evolved into the desktop style of interface which is
+prevalent today - examples include the Xerox Star (the first
+commercial system, introduced in 1981), the Apple Macintosh (the first
+commercial success), Microsoft's Windows (the biggest success), the X
+Window system~\cite{Schiefler92}, and others.
+
+%%    117 User Interface Metaphors
+\section{User Interface Metaphors}
+
+In 1984, just after the introduction of the Macintosh, Andries van Dam
+was asked in an interview in Communications of the ACM what major
+improvements still need to be made to bring the user-computer
+interface to maturity~\cite{vanDam84}.  His answer, in part:
+\begin{quote}
+``[...] We also need faster image dynamics on the screen -- it is
+still too slow right now.  [...] On the software front, the
+applications aren't really integrated yet; you've got to switch
+between them.  Also, not all data can be transferred from one program
+into another.''
+\end{quote}
+Since then, phenomenal progress has been made in the area of computer
+rendering and imaging.  In fact, progress in rendering has been so
+great that it is mostly beyond the scope of this dissertation.  Most
+of the rendering techniques used in the Tab system are simply ways of
+harnessing capabilities already available in the underlying software
+and hardware, such as shared memory, compiler in-lining and loop
+unrolling, font rendering technologies, polygon filling algorithms and
+so on.  On the other hand, it is fair to say that relatively little
+progress has been made in being able to transfer data from one program
+into another.  It is for this reason that I will concentrate on the
+qualities of the Tab interface that will allow applications and users
+to cooperate and better share data -- i.e., the features discussed in
+the previous chapter.  Taken together, these features constitute the
+``metaphor'' of the Tab system.  This section covers the topic of user
+interface metaphors in general, while the following sections will
+cover the components of Tab's metaphors, which were defined in the
+first chapter.
+
+ % In his ``Devil's D.P. Dictionary'' (now the ``Computer
+ % Contradictionary''~\cite{Kelley-Bootle95}) Stan Kelley-Bootle writes
+ % two complementary definitions of transparent and virtual:
+ % \begin{list}{$\bullet$}{\itemsep -5pt}
+ % \item Transparent, {\em adj.} - Its there, but you can't see it
+ % \item Virtual, {\em adj.} - You can see it, but its not there.
+ % \end{list}
+ % 
+ % These two definitions encapsulate the process of creating a user
+ % interface system metaphor: make the irrelevant underlying
+ % mechanisms of the computer transparent, while creating a new virtual
+ % environment which embodies the metaphor.
+%%%     42 Things people have said about user interface design
+
+Considerable care must be taken to create a successful virtual world.
+While simplicity is a virtue, creating the illusion of simplicity can
+involve a great deal of complexity.  Furthermore, a simple model can
+seem appealing at first, but inadequate later.  As an example, some
+automobiles have an Automatic Braking System (ABS) the objective of
+which is to prevent the brakes from locking, while keeping the car
+going straight and slowing it down.  Sometimes this works well, but on
+a slippery surface the driver may wish to simultaneously slow down and
+make a turn.  This possibility is outside the user interface metaphor
+of the of the ABS as described above, and the author has found himself
+on certain occasions sliding straight out into the middle of an
+intersection instead of turning left.  An adequate ABS system may need
+to take the position of the steering wheel into consideration.  To
+paraphrase Einstein, a user interface metaphor should be as simple as
+possible, but no simpler.
+
+By the same token, the spatial ``metaphor'' used in Pad is quite
+compelling on its own, but in designing an actual system other
+elements must be added to the system -- portals, filters, semantic
+zooming, constraint solving.  These solve important problems which
+arise in actual use, and without which the system is just a toy.  It
+is impossible to evaluate a new style of user interface if the
+implementation is not complete, so creating a radically new system
+becomes a chicken and egg problem.  You want to evaluate your system
+for guidance as it is being developed, but meaningful evaluations
+can't be performed until it is complete.  This may be the reason that
+comparisons between the spatial and textual metaphor such
+as~\cite{Jones86} which show that the spatial metaphor is somewhat
+inferior are so at odds with what we see in the real world, where
+textual interfaces are in danger of extinction.
+
+%%%% Brenda Laurel
+%%%% Metaphor as a design principle has powers and limitations
+%%%% Computer as a representer of a virtual world or system
+%%%% The "desktop metaphor" is the leading example of this interface metaphor
+%%%% Metaphor is natural and pervasive in human thought and language
+%%%% Interface metaphors are actually {\em similes}
+%%%% The really interesting thing is how virtual object *differs* from real
+%%%% 
+
+%%%% "There are two ways to fall off the desktop.  One is when you
+%%%% "start looking for the other things that 'go' with it and you
+%%%% "can't find them - filing cabinets, telephones, blotters for
+%%%% "doodling and making notes or even an administrative assistant to
+%%%% "make some calls or type some letters.  The other is to find
+%%%% "something on it that doesn't go with everything else, thereby
+%%%% "undermining or exploding the mimetic context... [CAT p. 131]
+
+%%%% Ted Nelson
+%%%% The desktop metaphor is tenuous at best
+%%%% Prefers "virtuality" to "metaphorics" - conceptual structure and feel only
+
+
+ % 
+ % The term ``virtual'' is almost too general to be useful in this
+ % discussion.  Is there any aim of a software system besides creating
+ % transparency and virtuality?  The automatic braking system (ABS) in
+ % your car creates a virtual relationship between the pressure on your
+ % brake pedal and the deceleration of your car.  It tries to make
+ % transparent the role of the brake shoes, the coefficient of friction
+ % between the tire and the road, and certain other elements.  However,
+ % if your foot has learned braking without ABS you will be braking at
+ % less then peak efficiency in some situations, because you will be trying
+ % to do the job of the ABS with less precision than it can.  This
+ % illustrates the problem of user unfamiliarity with a virtual space.
+ % Other problems can arise as well -- if I try to brake on wet pavement
+ % while making a left turn, my car's ABS will decide that my left side
+ % wheels are skidding and release the brakes so I continue to go
+ % straight.  Here the virtual world has broken down because its model is
+ % too simplistic.  No matter how familiar the user is with a broken
+ % virtual world, the experience will still be unsatisfying.  Creating a
+ % brand new virtual world will mystify the naive user.  Creating a
+ % virtual world that tries to improve on the real world will
+ % occasionally astonish an experienced user, perhaps at the worst
+ % possible time.
+%%    173 Virtual surfaces in user interface systems
+
+\section{Virtual Surfaces in User Interface Systems}
+
+The Pad style of virtual surface, which is adopted by Tab, is one
+which is capable of representing essentially limitless detail, and
+which allows the viewer to observe the surface at any location
+from any distance.  However, the restriction is made that the view
+direction be always perpendicular to the surface, and the viewer
+cannot rotate.
+
+This means that the Pad virtual surface is a special case of a general
+three dimensional rendering system, which makes all such systems the
+ancestors of Pad and Tab.  The first such system was created in 1959
+by General Motors and IBM.  The DAC-1 (Design Augmented by Computers)
+converted a 3-D description of an automobile to an image which could
+be viewed from different directions.~\cite{Morrison90} The algorithms
+used in Tab to implement the virtual surface are essentially the same
+as those used in any 3-D computer graphics program, chosen with an eye
+towards real-time performance.  The Tab system also allows gradual
+refinement of the image, so a variety of algorithms with different
+time/quality trade-offs can be selected.  Such algorithms can be found
+in any computer graphics or image processing text book, such
+as~\cite{Foley90}.
+
+%%%     19 Virtual spaces are common in many applications, but rare in UIMS
+%%%%     16 Reason: Too costly to have unless application needed it
+
+Pad is about creating a user interface system which hides the pixel
+nature of the user's display and creates a virtual space which
+embodies a continuous coordinate system.  This has not been the
+practice up until now because of the computational costs involved in
+doing so.  All drawing operations have an additional level of
+abstraction which requires the transformation of coordinates in the
+virtual space to the physical screen space.  Rendering images into a
+virtual space requires re-sampling and reconstruction in the physical
+coordinate system.  Other rendering operations such as drawing text
+require even more complex types of transformations.  In the past these
+transformations have been the responsibility of the particular
+application which needed it.  To impose these costs on every
+application which ran on the system would have imposed an intolerable
+computational burden.
+
+%%%     26 Bolt's SDMS
+
+\subsection{SDMS}
+
+In {\em Spatial Data-Management}~\cite{Bolt79} Richard Bolt
+describes a system that incorporates a scalable virtual surface.  He
+calls the principle of using spatial cuing as an aid to memory the
+``Simonides Effect'', named for the ancient Greek poet famous for his
+technique of memorizing long recitations by assigning each topic a
+specific location in the floor plan of an imaginary temple, then
+recalling the entire speech by mentally walking through the temple.
+
+The description of the Spatial Data Management System (SDMS) includes
+a large number of advanced techniques: navigation over a large two
+dimensional workspace, screens giving an overview of the workspace
+(portals), directional audio cues, applications that activate as you
+approach them (semantic zooming), gestures for controlling audio
+volume and for turning document pages, hierarchical traversal of a
+book's contents, and live video in a zoomable window.  However, this
+is primarily an ``idea'' paper, and there is little discussion of how
+these features might be integrated into the user interface of a a
+personal computer system.
+
+%%%     37 Linton's Interviews, also paper on floating point coordinates in X
+
+\subsection{InterViews}
+
+InterViews is a system by Mark Linton~\cite{Calder90} which is based
+on a floating point coordinate system.  In~\cite{Linton92} Linton
+discusses a number of issues which are important when implementing a
+resolution independent layer on top of a resolution-dependent graphics
+system such as X Windows.  One such issue concerns whether to apply
+the current drawing transform to an object's size or its position.
+Transforming the size of two adjacent objects can cause gaps between
+nearly adjacent objects to appear and disappear, a very disturbing
+effect in an animated display.  It is less disturbing to convert
+positions and allow the objects to vary in size by a pixel.  Of
+course, the best route would be to anti-alias the objects, but as we
+discuss in section \ref{GradualRefinement} we need to implement
+algorithms that cover the whole range of speed/quality combinations.
+
+On the other hand, for some display elements it is more important to
+maintain a constant size than to maintain a constant relative
+position.  The thickness of a frame around an object might be one
+example.  In InterViews an object desiring a particular size examines
+its position in the pixel grid and computes the position it needs to
+pass to achieve a particular size.  This technique is easily adapted
+to Tabula Rasa because the current drawing transformation always takes
+coordinates back to screen pixel coordinates rather than to some
+physical coordinate system.  This is because an object's size in
+pixels is usually the best measure of visible detail, rather than the
+physical size of an object on the screen, because the screen size is
+often not available to the software, and the viewer can always change
+distance resulting in a change of apparent size.  This bias is partly
+the result of Tab being a less printer-oriented system than
+InterViews, which is designed so that any object can generate
+printable Postscript output.
+
+One of Linton's more significant conclusions for our purposes is that
+the inherant cost of doing resolution independent rendering is about 45\%
+over that of pixel-based rendering.  Given the rapid advances in computing
+technology, this is quite acceptable.
+%%%% 5 All 3-D applications use a virtual space
+
+ % By definition, every 3-D computer graphics system implements a virtual
+ % space, because the 
+%%%      2 Make possible a permanent visual geography, analogous to file names
+%%%      2 Garnet?
+%%%     32 Rendering issues - \cite{Foley90}
+
+\subsection{Pad++}
+
+In~\cite{Bederson94a} Bederson lists the following techniques used to
+maintain efficiency in a zoomable interface (quoting): 
+\begin{list}{$\bullet$}{\itemsep 0pt}
+\item {\bf Spatial Indexing} -- Techniques to speed up culling of
+off-screen objects
+\item {\bf Spatial Level of Detail} -- Avoid rendering detail which is
+too small to see (below the Nyquist limit\sfootnote{\cite{Foley90}, p. 627})
+\item {\bf Clipping} -- Avoid rendering any invisible portion of an
+object
+\item {\bf Refinement} -- Do low quality rendering initially, then
+high quality once the image is stable. 
+\item {\bf Adaptive Render Scheduling} -- Keep the zooming rate
+constant even as the frame rate changes.
+\end{list}
+In addition to these issues, some primitive rendering operations must
+be adapted to a resolution independent context, particularly images
+and text.  Low quality techniques for image scaling such as those used
+in computer games software are necessary to maintain interactive speed
+on conventional hardware.  One such game development system which
+inspired the Tab fast image rendering algorithm
+(later incorporated into the Pad++ system) was the WT (``What's
+That?'') system.~\cite{Laurel94} This system does simple orthogonal
+projection 3-D rendering, which means there is no vertical perspective
+distortion of the images.  In an appendix we will see
+how these techniques and others are adapted for use in Tab.
+%%%%      2 Space partitioning - ~\cite{Fuchs80}
+%%%%      2 Spatial indexing - ~\cite{Samet84}
+
+ % %%     18 2.5 dimensional systems
+ % 
+ % \SECTION{2.5 Dimensional Systems}
+ % 
+ % \begin{quote}
+ % ``Moreover, he has supplemental levers. On deflecting one of these
+ % levers to the right he runs through the book before him, each page in
+ % turn being projected at a speed which just allows a recognizing glance
+ % at each. If he deflects it further to the right, he steps through the
+ % book 10 pages at a time; still further at 100 pages at a time...'' --
+ % {\em Vannevar Bush - As We May Think - The Atlantic Monthly, July 1945}
+ % \end{quote}
+ % 
+ % Pad implements a 2.5 dimensional space, even though conventional
+ % wisdom may say that we are moving towards three dimensional
+ % interfaces.  
+ % 
+ % %%%      2 Allows movement in three dimension, but view direction is fixed
+ % 
+ % %%%      2 Less Dis-orienting than 3-D systems
+ % 
+ % %%%      2 Less restricting than 2-D systems
+ % 
+ % %%%      3 Most current systems allow objects to sit beyond the screen's bounds
+ % %%%%      2 X-windows, MS-Windows
+ % 
+ % %%%      3 Some allow the view to move in two dimensions, but not in altitude
+ % %%%%      2 Virtual window managers - VTWM
+ % 
+ % %%%      2 SDMS paper described many of Pad's properties, but was not a UIMS
+%%    120 Portals and Work-through interfaces
+
+\section{Portals and Work-Through Interfaces}
+
+\begin{quote}
+``When the user is building a trail, he names it, inserts the name in
+his code book, and taps it out on his keyboard. Before him are the two
+items to be joined, projected onto adjacent viewing positions. At the
+bottom of each there are a number of blank code spaces, and a pointer
+is set to indicate one of these on each item. The user taps a single
+key, and the items are permanently joined...'' -- {\em Vannevar Bush -
+As We May Think - The Atlantic Monthly, July 1945}~\cite{Bush45}
+\end{quote}
+
+One of the purposes of portals is to serve as the visual equivalent of
+a hyper-link, and as such inherits from Ted Nelson's ideas about
+hypertext in~\cite{Nelson87}.  When they are constrained to look at
+the same place they are located, they become magnifying glasses.
+If they look at the place they are located without changing the scale,
+they can be considered filters.  These are only interesting if they
+somehow change the thing being viewed.
+
+ %%%      2 Portals needed to relate objects distant in position and/or scale
+ %%%      2 WIMP objects are self contained due to limited communication
+ %%%      2 WIMP has no general model of communication between objects (like filters)
+ %%%     22 Portals are a special case of a camera/monitor pair of objects
+ %%%%      2 Camera's position determines what will appear on the monitor
+ %%%%     18 Various types of coupling between camera and monitor are possible
+ %%%%%      2 Camera is always directly below monitor and same size - a filter
+ %%%%%      2 Camera is always directly below monitor and smaller - a magnifier
+ %%%%%      2 Camera is somewhere else and never moves - used for menus and similar
+ %%%%%     10 Camera moves as monitor moves, but is elsewhere - 
+
+ % This notion has been studied by several groups; the [which group?]
+ % calls these ``Work Through'' interfaces\cite{???}, while the [Xerox
+ % group] calls it them ``Magic Lenses''\cite{???}.
+
+ % whose camera is always directly beneath the monitor, so it normally
+ % appears as a piece of glass, transparently displaying the objects
+ % it covers.
+
+ %%%      2 Filters are a model for communication in the Pad system
+%%%     78 Xerox work - generating models of filtered objects
+
+\subsection{Toolglass and Magic Lenses}\label{Toolglass}
+
+In ``Toolglass and Magic Lenses: The See-Through
+Interface''~\cite{Bier93} Bier et. al. describe a system for
+implementing filters which is quite similar to that offered by Pad.
+They emphasize the desirability of using filters as a two-handed
+interface, where the non-dominant hand positions the filter and the
+dominant hand performs work through it, much as one might work with a
+ruler or French curve.  The paper contains an interesting collection
+of design ideas for work-through interface tools, including both
+visual and interactive tools.
+
+Three approaches are described for implementing filters.  The first,
+{\em Recursive Ambush}\label{RecursiveAmbush}, obtains from each
+object a procedural description of itself (e.g. a Postscript program)
+and interprets that description using modified primitives.  For
+example, the DrawLine primitive might be modified to always draw red
+lines.  The authors mention three disadvantages of this approach: the
+need to re-implement numerous graphics primitives to implement a given
+filter is onerous; the results of composition can be mystifying, and
+the performance of composed filters deteriorates rapidly because the
+entire computation must be re-done for each pair of filters that see
+each other -- and because they are placed by hand each filter usually
+has at least a peek at each of the filters below it, causing a
+doubling of computation time for each added filter.
+
+The {\em Model-In Model-Out} (MIMO) approach creates a modified copy
+of the object, or a new object of a different type based on the
+original object (the line between these is not entirely clear.)  This
+modified model is what the user sees and interacts with through the
+filter.  This approach trades storage space for a substantial
+performance advantage.  It also frees the filter from the domain of
+the graphics language -- filters can be designed to operate in the
+application domain.  Other advantages mentioned include performance
+and relative ease of authoring and debugging.  Disadvantages include
+very high storage requirements due to making complete copies of all
+the filtered objects, and problems associated with propagating changes
+made to the model back to the original object.  (This last issue does
+not appear to have been addressed.)
+
+The third approach is called {\em Re-parameterize and Clip}, where
+instead of performing the rendering itself, the filter alters the
+parameters and clip area of a renderer and thus directs its output.
+The performance of this approach is similar to the MIMO approach.
+
+The advantages and deficiencies of these approaches can be combined to
+point towards the ideals we seek in the implementation of a filtering
+mechanism for Tab.  To allow composition without an undue
+performance penalty we need to maintain state information about the
+objects being filtered.  The mechanism should not be limited to the
+domain of graphics primitives; it should operate in the domain of the
+methods of the objects which are being modeled.  We want to avoid the
+excessive storage requirements of the MIMO approach and we want to
+operate on the original object, not a copy.  And finally, we want
+filter composition to happen in a natural way, without the need to
+consider the implications of each possible filter combination.  In
+section \ref{Filtering} we will see how the use of delegation-style
+inheritance greatly facilitates many of these goals.
+%%%     17 Delegation
+\subsection{Delegation}
+
+Delegation style object inheritance is not present in the languages
+commonly used for user interface system development, such as C++,
+Java, and even CLOS.  Delegation is discussed by Brooks Conner
+in~\cite{Conner93}, who considers it a technique which is particularly
+important to interactive graphics programming.  He notes that its
+absence in any commonly used languages has led to unnecessarily
+complexity in the design of user interface development systems such as
+Xt, Garnet and many others.  One language that implements delegation
+is Self~\cite{Ungar87}~\cite{Smith95}, but unfortunately development
+of Self has been discontinued and it is not available for common
+platforms.
+
+%%     49 Semantic Zooming
+
+\section{Semantic Zooming}
+
+In describing Pad as a ``resolution independent'', one might think
+that matters concerning the size of an object on the screen are hidden
+from the application programmer, but actually these issues are re-cast
+at a different level of abstraction.  Instead of being told what the
+size of the drawing area is in pixels, the application always draws in
+the same area, and has {\em access} to the scaling factor that
+converts the drawing coordinates to pixels.  Techniques that use this
+information are termed ``semantic zooming'', and this term covers many
+existing techniques that place a layer of abstraction over the task of
+drawing into a pixel grid.  The aim of semantic zooming is to maximize
+the amount of useful information on the screen while minimizing the
+amount of useless information.
+
+The most prominent ancestor of Semantic zooming is anti-aliasing, a
+technique where the rendering of an image is optimized for a
+particular pixel resolution.  With anti-aliasing, the optimization
+criteria is to eliminate artifacts such as jaggies or Moire patterns,
+which are not present in the original image or model being rendered
+and thus constitute useless information.
+
+The Tree-map, presented in~\cite{Johnson92} and~\cite{Turo92}, is a
+display technique for hierarchical information in which a rectangular
+area is first allocated to hold the representation of the tree, and
+this area is then subdivided into a set of rectangles that represent
+the top level of the tree.  This process continues recursively on the
+resulting rectangles to represent each lower level of the tree, each
+level alternating between vertical and horizontal subdivision.  The
+stopping point for the recursive subdivision must be based on the
+visual size, so as you examine different subtrees, semantic zooming
+occurs as the depth of the traversal changes.
+
+ % \item Schneiderman's Dynamic Queries
+
+There are other examples of systems, either real or envisioned, that
+embody characteristics of semantic zooming.  In Computer
+Lib~(\cite{Nelson87}) Nelson describes ``Stretch-text'', a form of
+text document which you could ask for longer or shorter editions, and
+when you did the system would produce a document of the requested size
+which covered the same subject matter in greater or lesser detail.  In
+Film-finder~\cite{Ahlberg94} described by Ahlberg and
+Schneiderman the full title of a film appears when
+the user gets close enough to the surface that fewer than 25 films are
+on the screen.  Other examples of systems which adapt the
+displayed information to the scale of the view include some such
+as~\cite{Muthu95}, which mention the notion of Semantic Zooming explicitly.
+%%     60 Visual and interaction conventions
+
+\section{Visual and Interaction Conventions}
+%%%      2 Visual consistency is a key element of a successful UIMS
+%%%      2 Frames around portals and filters are always recessed
+%%%      2 Frames around menus and buttons are raised
+%%%      3 Navigating
+ % discuss the Pad++ navigation paper.
+%%%     55 Event Processing
+
+\subsection{Event Processing}
+
+Some systems, such as the X window system, simply present the event to
+the object and allow it to handle it as it wishes.  The event is
+passed as a C structure, and information such as the type of event
+(KeyPress, MouseMotion, etc.), the mouse cursor position, the object
+which received the event, the text string associated with the key that
+was pressed (e.g. {\tt "Backspace"}) is available by examining that
+structure.
+
+The Tk system provides a grammar whereby sets of events can be
+described with a text string, and then allows you to ``bind'' actions
+to the set of events described by such a string.  For example, {\tt
+"<KeyPress-a>"} (the letter ``a''), {\tt "<Control-d>"} (the letter
+``d'' with the control key down), {\tt "<Any-KeyPress>"}, {\tt
+"<Double-Button-1>"} (double click of mouse button one), etc.  Once an
+event has matched and the binding is invoked, other information about
+that event can be inserted into the action specification using special
+character sequences which the system performs substitutions on:
+{\tt \%x} gives the X coordinate of the mouse, and so on.
+
+This approach is clearly better than the X windows approach from the
+standpoint of the application programmer.  However, if we examine the
+tasks that are being performed we can see that the Tk system seems to
+be an ad-hoc solution to the problem.  First, we are partitioning the
+set of all events into a number of categories, where each event in a
+particular category is dispatched to a different handler.  The
+expressiveness of the Tk event category syntax is fairly limited here;
+for example there is no way to describe the set of all digit key press
+events.  The system is also doing some rudimentary parsing on the
+event stream when it recognizes a double-click event.  The question
+is, could a more formal approach to the specification of event sets
+and the grammar of the event stream produce a superior system?
+
+This is a dangerous question for a system implementor to ask.  The
+beauty of the Tk event description system is that the sets of events
+that it can describe are (most of) those that have been shown to be
+useful to the application programmer.  While providing more would
+increase the power of the system in the abstract, the resulting system
+might increase the effort required to describe those original sets
+which are so useful.  In fact, the added expressiveness would obscure
+some useful information which is available to the Tk application
+programmer -- that these are the sort of events that are generally
+preferred by users.
+
+The Tab system adopts an event dispatching scheme which assigns to
+each event a list of symbols which range from most to least
+specifically descriptive.  The application programmer can define
+methods the names of which are any of these symbols, and the most
+specific method will be invoked.
+%%     41 Maintaining System Responsiveness
+
+\section{Maintaining System Responsiveness}
+
+Due to the dynamic nature of the user's interaction with the system, A
+Pad-style user interface system needs be able to do real-time
+full-screen redrawing.  This section discusses techniques employed in
+the Tab system to achieve this on conventional computer hardware.
+
+\subsection{Gradual Refinement and Adaptive Render
+Scheduling}\label{GradualRefinement}
+
+Two important techniques used in Bederson and Hollan's Pad++
+system~(\cite{Bederson94a},~\cite{Bederson94b}) are gradual refinement
+and adaptive render scheduling.  Gradual refinement allows the system
+to use rougher but faster rendering techniques while the image is in
+motion.  Due to the short time these frames are visible, there is less
+need for high-quality rendering - there is no time for the user to
+examine them.
+
+Adaptive render scheduling is an interaction technique which computes
+the scale factors used while zooming on the basis of elapsed
+wall-clock time rather than on any fixed per-frame factor.  If the
+system frame rate is reduced, the size of the zoom steps is increased
+to compensate, so the expected interactive characteristics of the
+interface are kept as consistent as possible.
+
+\subsection{Asynchrony}
+
+A third technique which will be implemented in future versions of Tab
+is asynchrony or multi-threading.  This brings the multi-tasking
+familiar from operating system design to the application level.  Many
+opportunities for parallel execution are present in the Tab system,
+for example, using separate threads for reading and writing objects
+and other time consuming peripheral activities.  This technique may be
+most familiar from its use in the Netscape web browser.  Another use
+is to decouple event processing, which should occur as the events
+arrive, from screen update, which need not exceed the rate of about
+thirty frames per second.  Even more sophisticated alternatives to the
+event loop are described in Matthew Fuchs' paper~\cite{Fuchs95}.
+
+ % Local Variables: ***
+ % mode: Outline ***
+ % outline-regexp: "[%]+" ***
+ % End: ***

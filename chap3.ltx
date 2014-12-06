@@ -1,0 +1,1227 @@
+%   1253 Tab Low Level Design
+
+This chapter discusses the design decisions which led to the current
+implementation of Tab.  This current implementation was preceded by a
+large number of others, including implementations of Pad by Ken
+Perlin~\cite{Perlin93} and Matthew Fuchs.  It is also informed by the
+past and current design decisions made in Ben Bederson's Pad++.
+Before starting a discussion of the internal design of Tab, it is
+important to consider the tools which have been used to build it, as
+these have had a profound effect on the final result.
+%%    173 Tab Externals
+\section{Tab Externals}
+
+The first decision one makes in designing a new system is often what
+hardware and software environment the system will inhabit.  Many
+considerations go into this decision, and not all of which are
+technical:
+\begin{list}{$\bullet$}{\itemsep 0pt}
+\item What features the environment provides,
+\item what platforms the resulting system will run on,
+\item the stability of the environment,
+\item how familiar, proven and widely accepted the environment is,
+\item the cost of the environment software,
+\item the cost of licensing the environment's run-time system to end users,
+\item how likely the environment's vendor is to survive
+\end{list}
+and so on.  Often, the importance of the environment's features are
+downplayed relative to other factors, either by the lack of evidence
+showing the benefits, or even by citing the Turing equivalence of all
+programming languages.  As an academic system we felt that the it was
+important to take advantage of any benefits the programming
+environment could provide in the design of the Tab system, even at the
+cost of basing our work on systems with a shorter track record and
+less support.
+
+The earliest versions of Pad were implemented for single plane,
+monochrome Sun workstations, using the Sun Pixmap library.  Due to the
+lack of processing power all scaling was done by powers of two; no
+attempt was made to do smooth zooming.  This early version was also
+implemented entirely in C, with no provision for any interpreted
+extension language.  As time went by, the amount of computing power and
+the sophistication of the video subsystem of the typical workstation
+continued to increase rapidly, so later designs began to support
+pseudo-color and full color imaging models, and it became possible to
+do real time zooming of the tab surface, including images.  Of course,
+it will always be possible to devise a Tab application of sufficient
+complexity as to make smooth zooming impossible, so the {\em
+refinement} mechanism describe in section \ref{Refinement} was
+provided.  At the same time as these advances in hardware technology
+were occurring, other changes were taking place in the world of Unix
+software.  The decision was made to base future versions on the X
+Window system, and to implement the low level code in C++ rather than
+C.
+
+Later, it became clear that an interpreted extension language was
+necessary to enable the creation of domain specific Pad applications.
+One early attempt used the Tcl~\cite{Ousterhout94} programming
+language, but the lack of sophisticated programming language
+constructs soon led to the adoption of Scheme as the Tabula Rasa
+extension language.  At this time development of Pad++ began, and
+Bederson decided to rewrite the system from scratch.  A low level
+substrate was written in C++, and the Tcl programming language was
+adopted for an extension language.  In addition, the substrate was
+designed as a Tk widget.  This allowed the embedding of Pad in a user
+interface which could use the Tk tools (though the Tk tools only
+existed outside of the Pad space) and eased the development process by
+providing pre-built widgets for controlling the Pad++ system.  Since
+that time other extension languages have been added to Pad++,
+including Scheme.
+
+In the meantime, Scheme was adopted as the extension language for the
+Tab system.  Although the Tcl language has been found to be quite
+acceptable to end users as a scripting language, it was judged that a
+more powerful language was necessary to implement a flexible general
+purpose user interface construction environment.~\cite{Fuchs95} A
+Scheme interpreter named STk~\cite{Gallesio93} was chosen because it
+included an interface to the Tk toolkit, and has an object oriented
+programming system which supported both multiple inheritance and
+multi-methods.  Though use of the Tk toolkit was dropped soon after,
+the power of the object system remains a driving force in Tab's
+design.
+
+As development continued, features tended to creep out of the C++
+layer up into the Scheme layer.  This was due both to the ease of
+development in an interpreted environment, and to the appeal of the
+more elegant, general and powerful implementations which resulted when
+coding in object oriented Scheme.  Unfortunately, this also led to a
+worsening of the system's performance.  After some time spent
+attempting to re-partition the Scheme/C++ split to preserve both speed
+and flexibility, the STk interpreted-only Scheme environment was
+abandoned in favor of Joel Bartlett's {\tt Scheme->C}
+Scheme compiler.~\cite{Bartlett89}  
+%%%     40 The Taboo Object System 
+\subsection{The Taboo Object System}
+
+The first task in the transition from STk to {\tt Scheme->C} was to
+extract the object system from STk and make it portable.  The
+intention was to keep the code from becoming dependent on any specific
+compiler, and this goal has been met with mixed success, for reasons
+which will be described below.  The STk object system, STklos, was
+based on TinyCLOS~\cite{Kiczales92b}, a simplified version of the
+Common Lisp Object System~\cite{Kiczales92} written entirely in
+Scheme.  The portions of STklos which had been translated into C for
+speed were rewritten in Scheme and the resulting code was made to work
+under two Scheme compilers: {\tt Scheme->C} and Marc Feeley's Gambit
+Scheme System~\cite{Feeley}.  The resulting subsystem has been named
+{\em Taboo}, for ``TAB Object Oriented programming system.''
+
+These two Scheme compilers were chosen because they provide several
+features which are not part of the Scheme standard, but which turn out
+to be important in implementing Tab.  The first two of these
+non-standard features in the list below were necessary for
+implementing the object system itself, while the remainder are needed
+to implement other parts of the Tab system.
+\begin{list}{$\bullet$}{\itemsep 0pt}
+\item CLOS style keywords,
+\item access to the contents of a closure,
+\item loading a startup file for customization,
+\item ability to compile under both Unix and Microsoft Windows,
+\item object finalization,
+\item exception handling,
+\item a suitable foreign function interface
+\end{list}
+
+Currently, Tab can be compiled by a version of {\tt Scheme->C} which
+has been modified by the author to implement the first three features
+in the list above.  It can also be compiled by Gambit, which has all
+these features except for exception handling.  The Gambit version
+works well most of the time.  Currently, all the other compilers which
+are available to us lack one or more of the required features.
+%%%     43 Slot Access
+
+After the object system was ported to {\tt Scheme->C} and a compiled
+version of Tab was built, it was found that the expected speedup did
+not occur.  Investigation revealed that the object system's mechanism
+for accessing slots was consuming the majority of the system's time.
+This was especially unfortunate because the mechanism for dispatching
+a generic function call itself made several slot references.  The
+problem turned out to be the data structure used to implement multiple
+inheritance in TinyCLOS.  In a single inheritance object system it is
+possible to store all the slots of an object in a single vector, and
+each slot will always have a fixed offset in that vector which is
+known at compile time.  Thus, each slot access becomes a single vector
+reference.  However, in a multiple inheritance system this is not
+possible, because the graph induced on the classes by the superclass
+relation is no longer a linear list.  Even a class with no super
+classes can't assume its first slot is at offset zero, because it
+could still appear anywhere in inheritance tree of a given instance.
+
+TinyCLOS uses the following data structure to store an instance's
+slots: it traverses the tree of super classes and makes a list of slot
+names.  It then stores an association list in the class object
+containing each slot name and the slot's offset.  It then allocates a
+vector in the instance whose length equals the number of slots.  To
+access a given slot, the association list is searched for the slot
+name, and then the resulting index is used on the instance's slot
+vector.  The system was spending most of its time traversing slot name
+association lists.
+
+One way to improve the slot access performance is described by Kelley
+Murray in~\cite{Murray:96}.  It involves generating a perfect hashing
+function for all the slot names in the program and then accessing a
+two dimensional array of slot offsets using that and an index number
+assigned to the class.  This method's main drawback is the size of the
+array that might be needed for a large system.  A variant of this has
+been implemented for Taboo where instead of using perfect hashing
+functions an integer sequence number is assigned to each slot name as
+the program starts up, and all references to slots by symbol constants
+are converted to array references.  A similar technique is also used
+to avoid looking up classes by name, which speeds method dispatch.
+
+This improvement to the object system has brought the hoped-for
+speed-up.  Although method dispatch is still fairly slow, the ability
+to access slots quickly allows the hand optimization of inner loops,
+at least until further improvements are made to the object system
+implementation.
+%%%      8 Portability
+\subsection{Portability}
+
+As noted in the table above, the choice of compilers was made with an
+eye towards portability to Microsoft Windows.  It is expected that the
+code which the Tk library uses to map X library calls to Microsoft
+Windows equivalents can be used to port the underlying C++ code, thus
+rendering the entire system portable.
+%%     65 Tab Internals
+\section{Tab Internals}
+
+The remainder of this chapter discusses the low level Scheme layer of the Tab
+implementation.  This layer is primarily concerned with implementing
+the geometry of Pad space.  The central element of this is the update
+algorithm -- the procedure whereby the user's input is ultimately
+translated into changes on the user's screen.
+%%%     18 API design goals
+
+The challenge in designing the system is to efficiently implement a
+scalable virtual surface while providing a elegant application
+programmer interface in an interpreted language for the developer of
+Pad applications.  The application designer is concerned with the
+domain of the application being designed, and should be shielded as
+much as possible from issues which lie outside that domain.  This
+means the API should embody decisions concerning the appearance of
+menus, the implementation of the event handler for dragging and
+zooming objects, and so on.  In cases where the designer can't be
+completely shielded from such decisions, a set of alternatives should
+be provided each of which has been shown to have merit in practice --
+several types of borders, several styles of line drawing, etc.
+Default values for such choices should be carefully selected by the
+API designer.  Mechanisms for making deeper alterations to the normal
+look and feel should be provided, but they should be transparent to
+the designer who doesn't need to use them.
+
+%%%     39 Accommodating Efficiency
+
+Creating an efficient system while addressing these concerns is the
+primary goal of Pad system.  Though ``separating mechanism and
+policy''\sfootnote{See~\cite{Schiefler92}, p. 7} is a valid goal, the
+mechanism must be designed in such a way that policy alternatives are
+not eliminated, while at the same time the efficiency gained by
+``compiling in'' certain behavior is not lost.  This chapter is
+primarily concerned with the mechanism, but that mechanism has evolved
+to its present state because of the need to balance these concerns.
+One former design was implemented entirely in C, while another was
+implemented primarily in Scheme with only calls to the rendering
+primitives implemented in C++.  Neither of these designs were
+acceptable, and they led to a more recent design, where the update
+mechanism (event distribution, damage propagation and damage repair)
+is implemented in C++, with Scheme hooks for the application developer
+attached.  Unfortunately, this design became unworkable when more
+sophisticated uses of semantic zooming were attempted.  The update
+mechanism was not flexible enough to allow objects to decide
+procedurally whether to be visible or invisible, opaque or
+transparent.  This led to the current design, which is again primarily
+in Scheme, with certain key rendering algorithms implemented in C++.
+The issue of execution speed is addressed by careful attention to
+algorithms and adoption of improved compiler technology.\sfootnote{And,
+of course, improved hardware technology.}  For the didactic purposes
+of this implementation the greater expressiveness of a higher level
+language is the most important issue.  
+
+We begin the description by defining the lowest level objects that
+inhabit Tab space, from which all others are derived.  There follows a
+description of how these objects interact in the course of processing
+user input and updating the screen.  We then gradually add more
+complex objects such as portals and filters.  After that we proceed to
+a discussion of sub-topics of the update cycle -- how rendering
+primitives are implemented, how actions are bound to events, and how
+gradual refinement of rendering quality is implemented.  A discussion
+of the use of asynchrony is also included, though the implementation
+is incomplete due to lack of widespread support for threads in current
+operating system libraries.
+%%     38 Tablet
+
+\section{Tablet}\label{Tablet}
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=4.5in]{fig/tablet-inheritance.eps}}
+\caption{The root of the tablet inheritance graph.}
+\label{tablet-inheritance}
+\end{figure}
+As shown in figure \ref{tablet-inheritance}, the root of the tab
+inheritance tree is the {\em tablet} class.  This class encapsulates
+the minimum functionality necessary for an object to exist in Tab space.
+Each tablet has three basic attributes: A {\em shape}, a {\em transform}, and
+an {\em element}.
+
+The {\em shape} of a tablet is the portion of the Tab surface that it
+occupies.  The data structure of the shape is described
+in~\cite{Foley90} (pp. 992-996), and has been chosen because it is
+easy to compute the unions, intersections and differences required in
+the algorithms described below.  It is also supported by most window
+systems once the coordinates are converted to integers ({\em
+exactified}.)
+
+A tablet's {\em transform} is the transformation from the {\em public
+coordinate system} to its {\em private coordinate system}.  Giving
+each tablet a private coordinate system allows it to operate in a
+coordinate system which is natural to the application domain.  In the
+current implementation the transform is not a general linear
+transformation, only scaling and translation are permitted.  This
+avoids some difficulty in implementing graphics operations which are
+not supported by the underlying window system and for which we have
+no efficient replacement, such as rotated shapes and images.
+
+The {\em element} of a tablet is a pointer to the container object that
+represents its stacking order on the surface.  This can be used to
+locate adjacent tablets in the stacking order in constant time.
+This is an important operation for the system, which frequently needs
+to traverse the tablet stack.
+%%     97 Viewer
+
+\section{Viewer}
+
+The second basic object that figures into the initial description of
+the update algorithm is the {\em viewer}.  This object represents the
+user's input and output devices.  Because the input/output devices are
+represented by a type called {\em window} in the underlying Zoom
+graphics library, the viewer object has the window class as one of its
+super classes.  The viewer's private coordinate system is the pixel
+coordinates of the screen or window, and the image it displays there
+is of whatever lies inside the viewer's shape and below it in
+the stacking order.
+
+Note that the viewer's private coordinate system has an inverted Y
+coordinate for the window systems we have encountered so far, with Y
+increasing towards the bottom of the screen, while in Tab the Y
+coordinate increases upwards.  This means that care must be taken when
+transforming shapes to insure that the Y spans remain in increasing
+order and the heights remain positive.
+
+There can be several viewers in the Tab system, each displaying a
+different portion of the Tab space and each displaying themselves in a
+different window.  These viewers could even be connected to windows on
+different user's screens, providing a primitive sort of
+shared/collaborative system.  More sophisticated types of multi-user
+Tab systems could be constructed by implementing viewers which used
+other protocols besides X-windows.
+%%%     69 The Basic Update Cycle
+
+The basic {\em update cycle} is activated when a portion of a viewer
+becomes damaged and needs to be redrawn.  {\em Damage} occurs in
+several situations: when the viewer is first created, when a portion
+of the window becomes exposed, or when something in Tab space
+transmits damage to the viewer.  If the damage originates in Tab space
+it is transmitted upwards through the stack of tablets.  If it
+encounters a tablet, the shape of that tablet is subtracted from the
+damage shape and the remaining damage continues upwards.  If and when
+the damage hits a viewer the intersection of the damage and viewer
+shapes is converted to the viewer's private coordinates (i.e. pixel
+coordinates) and added to the viewer's damage shape.
+
+The emphasis here is on updating the smallest possible amount of
+screen space, because the act of updating can trigger expensive
+operations.  As we will see in the next chapter, one way of preventing
+invisibly small detail from being rendered is by putting an object in
+front of it which is opaque at certain scales.  If the system doesn't
+carefully avoid unnecessary rendering this technique will fail.
+
+The viewer contains two stacks which it uses during all phases of the
+update cycle: a {\em clip stack} and a {\em transform stack}.  At any
+time the top element of the transform stack will take the private
+coordinates of the tablet which is being operated on to pixel
+coordinates.  Similarly, the top element of the clip stack tells us
+what part of the screen coordinate system the current tablet affects.
+These stacks will see heavier use once the {\em group} type is
+introduced, but they are presented here because we now need access to
+their top element.
+
+At some point when damage has accumulated it is time to {\em render}
+the damaged portion of the viewer.  This might be at the end of an
+event handling routine, or if the Tab implementation is asynchronous
+(implemented using multiple threads of execution) it might be after a
+specific amount of time has passed.  To render the damaged portion of
+a viewer, the viewer's transform is first pushed onto its own
+transform stack, and the damage shape is pushed on the viewer's
+clipping stack.  Now each tablet below the viewer is examined in turn.
+The top element of the viewer's transform stack is applied to each
+tablet's shape to convert it to the coordinate system of the shape on
+top of the clip stack.  the tablet's render method is invoked to
+redraw any intersection between the two shapes.  After that, the
+tablet's shape is subtracted from the top element of the clip stack
+and the procedure is repeated for the next lower tablet.
+
+For each tablet, the intersection of the tablet shape and the shape on
+top of the damage stack is computed.  If this intersection is
+non-empty the current clip boundary is set to this shape transformed
+back into viewer coordinates.  Next the composition of the tablet's
+transform and the top element of the transform stack is computed and
+pushed onto the transform stack.  Then the tablet's render method is
+called.  Afterwards, the area just rendered is subtracted from the
+damage region and the system continues to the next tablet down.
+
+An input {\bf event} is handled in a similar way.  Like a rendering
+request, it originates from a viewer, which represents the user's
+mouse and keyboard as well as the screen.  There are two important
+differences, however.  First, instead of having a shape an event
+occurs at a single point.  Second, an event is first propagated down
+through the stack of tablets, and if it is stopped or reaches the
+bottom without being used it then comes back up, giving the tablets a
+second chance to intercept the event after it has been rejected by the
+objects below it.  This becomes important once transparent objects and
+portals are introduced.
+
+ % \subsection{Next Cursor}
+ % This slot holds the cursor shape that will take effect at the end of
+ % the next update cycle.
+%%     48 Group
+
+\section{Group}
+
+A {\em group} is a tablet which contains an ordered collection of
+tablets.  Groups define what is referred to above as the stacking
+order.  The transform of the group affects all the tablets inside it
+-- the private coordinate system of the group is the public coordinate
+system of the tablets it contains.  This means that the transform of
+the group can be used to move and scale the group's elements {\em en
+masse}.
+
+The shape of the group is the union of the shapes of its constituent
+tablets, so events or damage that don't intersect the group's shape
+can be considered to have missed all the group's elements as well.
+This means the group can be used to implement spatial indexing
+algorithms to enhance the system's efficiency.  Groups can be nested
+to implement even more sophisticated schemes.
+
+Although users consider the tablets on the screen to be sitting on a
+surface, this notion actually breaks down into more primitive
+elements.  A surface is a group of tablets, the bottommost member of
+which is a {\bf backdrop}.  A backdrop is simply an opaque tablet of
+unlimited extent.
+
+The element slot of the tablet holds an object which represents the
+tablet's membership in a group, specifically an instance of the {\em
+ordered-set-element} class.  As mentioned above this gives us a way to
+locate the adjacent tablets in the stacking order, as well as giving
+access to the group itself.  Giving the tablet only a pointer to the
+group and having it search for itself amongst the group's elements
+proved to be an unacceptable performance penalty.
+
+The presence of groups as the tablet ordering mechanism motivates the
+existence of the transform stack in the viewer.  Whenever an event or
+a rendering request encounters a group the viewer pushes its transform
+stack and composes the group's coordinate system with its own.  When
+leaving the group the inverse of its transform is then composed.
+
+Having nested groups also means we need a way of determining whether
+an event that enters a group has hit anything while it was inside, and
+whether or not the object it hit used it.  This allows the system to
+decide whether to propagate the event downwards or upwards when it
+leaves the group.  A slot which holds a symbol is provided in the
+event object for this purpose.  This symbol is initially {\tt unused},
+and it remains so on its trip down the tablet stack.  When it hits an
+object it becomes either {\tt used} or {\tt stopped}, depending on
+whether the object has consumed that event.
+%%     53 Transparent and Never Transparent Objects
+\section{Transparent and Never Transparent Objects}
+
+It is desirable to be able to create objects which are transparent or
+semi-transparent, not only visually but also transparent to events.
+For this we define a predicate {\tt transparent?} on tablets to
+distinguish these objects.  By default, tablets are opaque, but
+viewers are transparent, they are invisible to other viewers and do
+not receive or block events.
+
+For opaque objects the rendering proceeds in top to
+bottom\sfootnote{Often called front to back.} order.  First the
+clipping shape is set to the intersection of the object's shape and
+the remaining damage shape.  The object then draws itself and then
+subtracts its shape from the remaining damage.  This is to ensure that
+nothing outside of the damage shape is drawn, and nothing is drawn
+more than once.  However, if a transparent object is present we need
+to use a bottom to top drawing order to render it, so it can overlay
+itself onto the already rendered image of the objects below it.  These
+two requirements combine to form a total ordering on the set of
+tablets to be rendered at any given time and scale.
+
+We define transparency using a method rather than a slot to allow for
+the possibility of one object appearing simultaneously in both an
+opaque and transparent state.  This could happen if its transparency
+depended on its scale and it was visible both directly and at another
+scale through a portal.
+
+The one difficulty that arises from objects which are sometimes
+transparent and sometimes opaque is that although the scale is known
+when propagating events and doing rendering, it is not known while
+propagating damage.  This is because damage originates from tablets
+and travels upwards towards the viewer, while events and rendering
+requests originate at the viewer and travel downwards.  The viewing
+scale of the damaged area is not known until it hits the viewer, so
+while propagating damage we may not have enough information to decide
+whether a tablet is transparent.  In this case, we must assume that
+the tablet {\em is} transparent, and as a result there may be more
+damage than necessary.
+
+To mitigate this problem, another predicate {\tt never-transparent?}
+is added to allow tablets to indicate that they can {\em never} become
+transparent.  This method returns true by default, so unless a
+subclass of tablet defines this method to return false, the tablet
+will always obscure damage which encounters it on the way to a viewer,
+even if the {\tt transparent?} predicate sometimes returns true.
+Special attention should be paid to the case where a viewer is inside
+of a group.  If the group's {\tt never-transparent?} method is true
+then damage which occurs below the group will not be propagated to the
+elements inside the group, as it is quicker to subtract the shape of
+the group from the damage shape and continue to the tablets above.  In
+this case, the viewer will never see the damage, and will not be
+updated.  It is assumed this situation will not occur.
+%%     35 Translating Events into Actions
+
+\section{Translating Events Into Actions}\label{EventsToActions}
+
+Previous sections have discussed how events are distributed to objects
+during the update cycle.  Once the event reaches its destination the
+tablet needs to determine what actions to take in response to that
+event.  There must be a simple and powerful interface for the
+application programmer to specify the relation between events and
+actions.
+
+A tablet's event handling behavior is controlled by adding one or more
+{\bf handler} classes to its list of super classes.  This may seem
+inadequate on first consideration -- how do you handle tablets which
+handle events differently on different parts of its surface, or at
+different times?  This type of task can be accomplished by creating
+special handlers which contain two or more other handlers, and look at
+the event's properties to decide which of them to forward the event
+to.  Note that a full implementation of multiple inheritance is needed
+for this to be practical, as each handler may include state.  The
+``multiple interface'' approach used in Java is not sufficient.
+
+Once an event is delivered to a specific handler associated with a
+tablet, the event's type is converted into a list of symbols, each of
+which describe the event in more and more general terms.  For example,
+the upper case ``Q'' keyboard event would yield the list {\tt
+(shift-key-q any-key)}.  Then the object system's {\tt find-method}
+function is used on each of the symbols on this list in turn, to see
+if there is a method by that name which takes this handler type as an
+argument.  If no method is found, or all the methods leave the event
+unused, the default method simply named {\tt handle} is called.  This
+arrangement allows the application programmer to simply define a
+method whose name is that of the desired event, with an argument of
+some type derived from handler, and that method will automatically
+receive exactly the events requested.
+%%     20 Portal and Camera
+
+\section{Portal and Camera}\label{Portals}
+
+A {\em portal} is an object which can be linked to any other object.
+It is usually linked to a {\em camera}, which is invisible and
+transparent to events.  Whatever is directly below the camera is
+visible on the portal's surface.  Furthermore, events and damage also
+pass between the camera and portal.  (This is similar to the
+relationship between a viewer and the user's screen.)
+
+Though a portal is not transparent in the sense conveyed by the {\tt
+transparent?} predicate, it does pass events through to its associated
+camera.  On the downward trip an event will contain {\tt unused} in
+its state slot, while on the upward trip it will contain either {\tt
+stopped} or {\tt used}.  It is important for transparent objects to
+distinguish between these cases.
+%%     27 The Timer Heap
+\section{The Timer Heap}\label{TimerHeap}
+
+Applications and various other parts of the tab system can use the
+{\tt set-timer} method to request a timer event be sent at a fixed
+time in the future.  The global variable {\tt timer-heap} is a heap
+which organizes all the requests for timer events into a single
+priority queue.  The item at the front of this queue is always the
+timer which is going to lapse soonest.  The elements of the queue are
+instances of class {\tt <timer-event>}, and a {\tt <heap>} structure
+is used to keep them sorted.
+
+The {\tt (set-timer <real> <list>)} function creates a timer event
+carrying the info field given in the second argument, set to go off
+after the number of seconds given in the first argument.  When it goes
+off the generic function {\tt alarm} will be invoked and the objects
+in the list passed as the second argument will be used as its
+arguments.  Before the objects go into the heap the the current time
+is added to the number of seconds to determine the specific time the
+timer will lapse.
+
+When the {\tt next-event} method is called from the main loop, it
+first checks whether there are any timer events in the priority queue.
+If there are it uses the next one as the timeout value for getting the
+event.  If no other event occurs before the timeout a {\tt
+TimerNotify} event will be returned.  In this case we remove the timer
+from the heap and copy its {\tt info} slot into the event.
+%%     22 Enter and Leave Events
+ % \section{Enter and Leave Events}\label{EnterLeave}
+ % 
+ % Whenever the mouse moves we need to generate enter and leave events
+ % for the tablets which the mouse moves into and out of.  The following
+ % two code segments are executed before and after each event is handled.
+ % During the event handling the method {\tt make-current} is called for
+ % each tablet which the event is determined to fall inside, and the
+ % resulting set of tablets is compared to the initial set to see what
+ % has changed.
+ % 
+ % To do this we add two slots to the {\tt <viewer>} class.  The {\tt
+ % current} slot contains a list of the tablets that the mouse pointer is
+ % considered to be inside of, while the {\tt previous} slot holds the
+ % list generated by the previous event.  During the processing of each
+ % event the new current set is built and and at the end it is compared
+ % to the previous.  After a {\tt MotionNotify} event, each object in
+ % ({\tt current} - {\tt previous}) is sent an {\tt EnterNotify} event,
+ % while each object in ({\tt previous} - {\tt current}) is sent a {\tt
+ % LeaveNotify} event.  We must also watch for the window manager's {\tt
+ % EnterNotify} and {\tt LeaveNotify} events, which should generate empty
+ % previous and current lists respectively.
+%%     38 Event Stream Grabbing
+
+\section{Grabbing}\label{Grabbing}
+
+The Grab mechanism allows one or more objects to take control of the
+event stream from the usual dispatching system.  This is necessary in
+situations where the user is dragging an object around the screen.
+The intent is for the object to follow the motion events of the user.
+However, if the usual dispatching system is used some of the motion
+events might take the mouse pointer outside the dragged object's
+boundary.  This event would never be delivered to the object, and the
+drag would stop.  Another situation where grabbing is necessary is
+when dragging an object across something which is above it in the
+stacking order.  Without grabbing, the system would drop the object
+being dragged in favor of the object above.
+
+When an object is passed to a viewer's {\tt grab} method, all
+subsequent events from that viewer are delivered directly to the
+object until the viewer's {\tt ungrab} method is called.  Unlike most
+window systems, more than one object can grab the input stream.  The
+viewer maintains a list of grabbers, and as long as that list is not
+empty each event is delivered to each grabber.  Allowing multiple
+grabs is an alternative to the {\em enter} and {\em leave} events used
+by many systems.  To illustrate with an example, a pop-up menu
+consisting of a column of items needs to grab the event stream because
+it needs to be notified in the event that the user releases the mouse
+button while the pointer is outside of the menu -- in that case the
+pop-up is dismissed.  Because the menu items are themselves Tab
+objects, they also need to grab the event stream so they know when the
+pointer enters and exits their surface and can change their border
+relief accordingly.  The use of multiple grabs allows similar functionality
+to the enter/leave event model while avoiding the overhead of associating
+with the generation of enter/leave events.
+
+The viewer's {\tt grab-list} slot holds a list of {\em (handler,
+transform)} pairs that are grabbing the event stream.  The transform
+is the one that was in effect when the grab was initiated.  This
+allows the system to re-create the correct environment when sending
+events to a grab.  It is necessary to copy the grab list before the
+event is sent, in case new grabs are added or old ones deleted during
+the handling of the event.
+%%     49 Refinement
+\section{Refinement}\label{Refinement}
+
+Refinement is a technique whereby areas of the screen are first
+rendered using rougher and less time consuming techniques, and then
+again using more sophisticated and time consuming algorithms.  The
+purpose of refinement is to provide good response when the user is
+interacting with the system, and then to provide a higher quality
+image when the system is at rest.
+
+To achieve this we keep the shapes to be refined in a priority queue,
+and subtract any newly damaged shapes from the shapes already in the
+queue.  If a queue element matures without having been reduced to an
+empty shape, that shape is re-rendered using a higher refinement
+level.  This is implemented by adding three slots to the viewer object:
+one to hold the current refinement level, one class slot to hold the
+amount of time to wait between refinement levels, and a priority queue
+(heap) to hold the refinement events.
+
+Each heap element is an instance of the {\tt refine-event} class,
+which has three slots: a shape which holds the area of the viewer to
+be re-rendered, a timestamp which holds the time at which the
+refinement is to be performed (usually about half a second after the
+object was created,) and the viewer on which the refinement is to be
+performed.
+
+The {\tt insert-refine-event} method creates a new refinement event
+and inserts it into the heap.  The first thing it must do is use {\tt
+cancel-shape} to subtract its own shape from those of the existing
+elements.  In this way refinement of the area covered by this newly
+damaged shape must be postponed until this new event lapses.
+
+In addition to being inserted into the refine queue, the refine event
+is also inserted into the main event queue.  When the timer event goes
+off it invokes an {\tt alarm} method which performs the actual
+re-rendering.  This is necessary to cause the system to wake up when
+it is time to do the refinement.  An earlier version of the system
+only checked the {\tt refine-heap} at the end of each iteration of the
+update loop, but when the system became idle the refinement queue
+would never be checked.  In the present system, the only purpose
+served by having a refine-heap separate from the timer heap is to
+provide easy access to the list of pending refine events for canceling
+re-damaged shapes.
+
+When the timer event expires it invokes the {\tt alarm} function, to
+which it passes the timer event's info field which contains the {\tt
+refine-event}.  This call is dispatched to a method which increases
+the viewer's refine level and renders the requested shape.
+%%     47 Saving and Restoring
+\section{Saving and Restoring}
+
+The design goal for the save/restore mechanism is that it place as
+little burden on the application programmer as possible.  The design
+requirement is that it write an expression to a file which, when read
+back into the interpreter, creates a configuration as close as
+possible to the one that was written, given the conditions at the time
+the configuration is read back in.
+
+The reason we say ``as close as possible'' rather than identical is
+that there may be differences in the program's environment when it is
+restarted, and some aspects of the running environment may not be
+suitable for saving.  For example, the type of visual might be
+different when the configuration is loaded.  This means that we need
+to re-quantize the images, so simply writing the image data structures
+would not be acceptable.  Furthermore, writing the image data to the
+save file would waste disk space, it might be more appropriate to
+simply write the image's file name or URL.  This suggests that
+devising a general mechanism which could write any object without any
+specific knowledge of that object would be impractical.
+
+To implement save/restore for a new class the application programmer
+only needs to write a {\bf config} method for that object.  The config
+method takes one argument, the original tablet that is to be
+configured, and it returns a function of one argument, the object that
+is to be turned into a copy of the original.  As an example, here is
+the config method for the camera class:
+\begin{verbatim}
+(define-method config ((orig <camera>))
+  `(lambda (copy)
+     (,(next-method) copy)
+     ,(if (<camera>-portal orig) (refer (<camera>-portal orig)))))
+\end{verbatim}
+The config function looks almost like a standard STklos initialize
+method, except that
+\begin{enumerate}
+\item the entire function is wrapped in a {\tt (lambda (copy) ....)}
+	so that it returns a function that can be saved and then
+	loaded and applied to the copy, and
+\item instead of simply calling (next-method) the expression
+	{\tt (,(next-method) copy)} is used, which expands into code
+	that initializes the super classes, and
+\item all references to objects are wrapped in {\tt (refer ...)} which
+	expands into code that looks up that other object in a hash table,
+	so that circular structures and multiple references are handled
+	properly.
+\end{enumerate}
+%%     85 Constraints
+
+\section{Constraints}\label{Constraints}
+
+The constraint system is implemented in the same way that a tablet's
+event handling characteristics are selected, by adding handler classes
+to the tablet's list of super classes.  In this case the objects are
+{\bf constraint} objects, classes which implement one or more of the
+three ``hook'' methods, {\tt insert-hook}, {\tt geometry-hook}, and
+{\tt remove-hook}.  The system calls these methods when various
+attributes of the tablet change.  These three events are chosen
+because they are the primary ways in which the geometry of Tab space
+can change.
+
+The {\tt geometry-hook} is called whenever a tablet's shape changes,
+but not when only its transform changes.  This is because changing the
+transform only affects that tablet's appearance, it should not affect
+any objects outside itself.  Therefore the damage mechanism is
+sufficient to handle such a change.  The {\tt insert-hook} is run
+whenever a tablet is inserted into a group, and the {\tt remove-hook}
+is run whenever a tablet is removed from a group.
+
+ % A typical use is to have a
+ % portal's insert and remove hooks cause its associated camera to follow
+ % it whenever it is moved, resulting in a composite lens object.
+
+Several constraint classes are provided which implement some basic and
+useful types of constraints.  These can then be combined using
+multiple inheritance.  It is vital that the programmer ensure that
+running a hook not cause an infinite recursion in the hook itself.
+Because hooks are usually simple, no built-in mechanism is provided to
+prevent this, though a hook method could be implemented in such a way
+that it checks for and prevents this itself.
+
+Here are a few examples of useful basic constraint objects.  The {\tt
+<no-magnify>} constraint is used to keep the center of a portal's
+camera at the same position as the center of the portal, and the
+magnification at one.  This gives the portal the appearance of a
+non-magnifying piece of glass.  Note that the constraint object has a
+slot for the camera, rather than assuming that because it is mixed
+into the portal class it can retrieve the camera from itself.  This is
+because it might be part of a frame which contains the portal, in
+which case the camera should stay centered below the frame.
+
+\begin{verbatim}
+(define-class <no-magnify> () ())
+
+(define-method geometry-hook ((self <no-magnify>))
+  (set-transform (<portal>-camera self)
+                 (<tablet>-shape (<portal>-camera self))
+                 (<tablet>-shape self)))
+\end{verbatim}
+
+The {\tt <magnify-hooks>} class relaxes the ``no magnification''
+constraint so the object can be used to enlarge or reduce:
+
+\begin{verbatim}
+(define-class <magnify> (<no-magnify>) ())
+
+(define-method geometry-hook ((self <magnify>))
+  (let ((camera (<no-magnify>-camera self)))
+    (set-transform
+      (<tablet>-shape camera)
+      (make-shape :center (center (<tablet>-shape self))
+                  :size (size (<tablet>-private-shape self))))))
+\end{verbatim}
+The {\tt <follow>} class is used to cause a camera to always sit just
+below its associated portal.  When the portal is removed, the camera is
+removed; when the portal is inserted, the camera is inserted just below
+it:
+\begin{verbatim}
+(define-class <follow> () ())
+
+(define-method insert-hook ((self <follow>))
+  (insert-below self (<portal>-camera self)))
+
+(define-method remove-hook ((hooks <follow>))
+  (remove (<portal>-camera hooks)))
+\end{verbatim}
+Finally, some common combinations of constraint classes:
+\begin{verbatim}
+(define-class <magnifier> (<magnify> <follow>) ())
+(define-class <filter> (<no-magnify> <follow>) ())
+\end{verbatim}
+%%    104 Drawing Primitives and Display Lists
+\section{Drawing Primitives and Display Lists}
+
+ % (Mention Linton's work.)
+
+The graphics primitives implemented in Tab correspond to those
+implemented in X windows, but they are all adapted to take arguments
+which are in floating point coordinates rather than integer.  This
+conversion is mostly straightforward due to the restriction that the
+transformation is not allowed to include rotation.  However, there are
+a few issues involved in the conversion from floating pointer to
+integer, and a few cases which are more difficult due to limitations
+of the underlying graphics system.
+
+Most of the issues are covered by Mark Linton in ``Adding Resolution
+Independence on Top of the X Window System''~\cite{Linton92}.  For
+example, to avoid gaps between adjacent objects one should avoid
+``exactifying'' lengths, but instead exactify positions.
+
+The most important cases where the limits of the underlying graphics
+system are encountered are in the rendering of scaled images and
+scaled text.  The networked model used by the X Windowing system is
+particularly ill-suited for implementing real-time image scaling due
+to the assumption of a relatively low bandwidth connection between the
+client application and the display.
+
+One technique used to speed image scaling is shared memory.
+Specifically, the MIT shared memory extension is used whenever the
+display is on the same machine that Tab is running.  This allows
+direct access to the memory where the screen image is constructed.  If
+this is not present it is necessary to maintain a synchronized copy of
+the screen image on both the client and server machines, so that image
+scaling can occur on the client side while the built-in X rendering
+operations can occur in the server.
+
+The algorithm used for image scaling is adopted from gaming
+software~\cite{Laurel94} to allow real-time performance for full
+resolution image scaling.  Although each pixel of the scaled image is
+constructed from a single sample of the source, the technique has been
+found acceptable for most purposes, particularly for non-refined
+views.  The important speed-ups in the code use
+\begin{itemize}
+\item Loop unrolling,
+\item Special casing using the compiler's inlining feature.  Below we
+see an example function where the cases 8, 16 and 32 are selected for
+optimization by passing a constant to an inline function.  Assuming
+that the {\tt do\_row\_inline} function does a fair amount of work,
+this will result in improved performance (at the expense of increased
+code size) due to the constant folding performed by the optimizer on
+the function argument:
+\begin{verbatim}
+void do_row(int bpp) {
+  switch(bpp) {
+  case 8: do_row_inline(8); break;
+  case 16: do_row_inline(16); break;
+  case 32: do_row_inline(32); break;
+  default: do_row_inline(bpp); break;}}
+\end{verbatim}
+Using these methods the inner loop of the simplest case of non-dithered
+image scaling is reduced to about six Intel 386 instructions per pixel 
+\item If the image is to be scaled much larger than the original, the
+destination image is drawn by filling a rectangle for each pixel.
+This approach uses the window system's rendering primitives to achieve
+better performance than a pixel-by-pixel approach.
+
+\item For pseudo-color displays, a fast color ordered dither technique
+is employed.  Applying the optimizations mentioned above to a
+dithering algorithm results in about 22 instructions per dithered pixel,
+about one third of the non-dithered speed.
+\end{itemize}
+
+Two techniques for drawing scaled text are provided.  One is a stroke
+font, which provides good performance but only mediocre quality.  The
+other is code to interpret Adobe Type 1 outline fonts, which provides
+good quality at larger scales.
+
+A display list data structure is provided to allow the rendering of
+composite objects without having to execute function calls for each
+graphics element.  The elements of the display list are rendered in
+floating point coordinates so they can be scaled and translated like
+other Tab objects.
+%%    257 Filtering
+\section{Filtering}\label{Filtering}
+
+As discussed in section \ref{Filters}, implementing filtered object
+behavior requires that we create surrogate objects whose behavior can
+be overridden method by method.  What makes this difficult is that we
+don't want the surrogate to be an entirely new object, we want it to
+have as its parent the {\em original instance} of the object.  When we
+look at or modify a slot in our derived object we want to see or
+modify the parent instance when the slot is inherited from the parent.
+Consider our text document/word processor example from section
+\ref{WordProcessorExample}.  When we place the word processor filter
+over our document it creates a "text document being edited" surrogate
+object which is derived from the text document object.  However, with
+C++ style inheritance this object would be an entirely new instance;
+modifying its text would have no effect on the text of the original
+document.  Instead, we want our new object to have the original text
+document {\em instance} as its parent.  Then the surrogate object
+created by the filter would, when asked for the fifth word in the
+text, refer the request to the original {\em instance} of the text
+document.  When asked for the cursor position it should refer to data
+stored only in the surrogate.
+
+If we tried to implement the surrogate object in C++ we would have to
+first create a new object containing a pointer to the old object and
+the new cursor data.  Then for each method implemented by the original
+object we would have to provide a stub method that invoke that method
+when it is called in the surrogate.  We would also have to dereference
+any uses of the original object's data members through the pointer to
+the old object.  If the old object was itself a surrogate object we
+would have to continue recursively.  This approach is not suitable 
+for applications programming.
+%%%     50 Implementation of Delegation in STklos
+\subsection{Implementation of Delegation in STklos}\label{STklosDelegation}
+
+Fortunately, the behavior we seek turns out to be easily implemented
+using CLOS~\cite{CLOS86}, or in this case a variant called
+STklos~\cite{Gallesio93}.  Normally classes are created using a {\tt
+define-class} macro, but filtered objects are created using a {\tt
+define-filtered} macro which creates classes with the instance
+inheritance property we need.  The approach is to first create a new
+class with any new slots we need but with no parent class.  The macro
+adds to these slots a {\tt super} slot to contain a reference to the
+parent instance.  It also creates a list of ``virtual slots'', one for
+each slot of the parent class.  A virtual slot is one which is not
+allocated in an instance, but instead procedures are provided to get
+and set its value.  These procedures access the slot in the parent
+instance.  Next, the macro ``manually'' sets the parent class of our
+filter by modifying its {\tt direct-supers} list and re-computing its
+class precedence list.  The ability to do this is a feature of the
+Meta-Object Protocol\cite{Kiczales92}, in which the filter class
+itself is an instance of the {\tt class} class, which can be
+manipulated within the framework of the programming language.
+Finally, it creates an initialize method which initializes the member
+variables but bypasses the initialize method of the new superclass,
+because the super instance is already initialized.
+
+\begin{verbatim}
+(define-macro (define-delegator name super slots)
+  `(begin
+     (define-class ,name ()
+       (,@slots
+        (delegate :init-keyword :delegate))
+        ,@(map (lambda (slot)
+                `(,(car slot)
+                  :allocation :virtual
+                  :slot-ref (lambda (self)
+                               (slot-ref (slot-ref self 'delegate)
+                                         ',(car slot)))
+                  :slot-set! (lambda (self v)
+                               (slot-set! (slot-ref self 'delegate)
+                                         ',(car slot) v))))
+              (slot-ref (eval super) 'slots)))
+     (slot-set! ,name 'direct-supers (list ,super))
+     (slot-set! ,name 'cpl (compute-cpl ,name))
+     (define-method initialize ((self ,name) args)
+       (%initialize-object self args))))
+\end{verbatim}
+
+One remaining weakness of this implementation of delegation is that if
+the {\tt initialize} method is overridden, calls to {\tt next-method}
+will incorrectly modify the delegate object.  Instead of calling {\tt
+next-method}, the function {\tt \%initialize- object}, which initializes
+the object's direct slots, must be called directly.
+%%%     47 Delegation Example
+
+\subsection{Delegation Example}
+
+As an example, consider a simple point class which also stores the
+point's distance to origin:
+
+\begin{verbatim}[delegation-example.scm]
+(require "delegation")
+
+(define-class <point> ()
+  ((x :init-keyword :x :accessor x)
+   (y :init-keyword :y :accessor y)))
+\end{verbatim}
+
+Lets create a class that filters {\tt <point>} which adds a slot to
+store the distance to the point's origin:
+
+\begin{verbatim}[delegation-example.scm]
+(define-filtered <3d-point> (<point>)
+  ((z :init-keyword :z :accessor z)))
+\end{verbatim}
+
+\begin{verbatim}[delegation-example.scm]
+(define p (make <point> :x 3. :y 4.))
+(define p3 (make <3d-point> :super p :z 5.))
+\end{verbatim}
+
+After executing the above code, we can look at the description of {\tt
+dp} and see it does indeed have the slots of {\tt p}.  Furthermore, if
+we change a slot of {\tt p} the corresponding slot of {\tt p3} changes
+as well:
+\begin{verbatim}
+STk> (describe p3)
+#[<3d-point> 8044120] is an instance of class <3d-point>
+Slots are: 
+     super = #[<point> 8044b88]
+     z = 5.0
+     x = 3.0
+     y = 4.0
+#f
+STk> (slot-set! p 'x 1.)
+#[undefined]
+STk> (slot-ref p3 'x)
+1.0
+STk> 
+\end{verbatim}
+%%%     39 Implementing Filters
+
+\subsection{Implementing Filters}\label{implementingfilters}
+
+Whenever an event reaches a tablet, or a tablet's render method is
+called, the first thing that happens is that the {\bf portal-stack},
+the stack of portals that were passed through on the way from the
+viewer to the object, is re-traversed from bottom to top.  Each portal
+is given the opportunity to handle the event or do the rendering.  If
+one of them chooses to do so, it will give the object an alternative
+behavior or appearance.
+
+This decision is based on the presence or absence of a method to
+handle the event or perform the rendering which takes an additional
+portal argument along with the usual viewer, tablet and event.  This
+technique is simpler than delegation based filtering, and can only be
+used to implement types of filtering which do not involve additional
+per-object state.  For example, you could implement a bar-graph
+rendering filter for a numerical data object without using delegation,
+but you could not implement an editor filter because editors need
+extra state, such as the cursor position.
+
+The class {\tt <filter>} is the subclass of {\tt <portal>} which
+implements delegation based filtering.  It has a {\tt delegate-class}
+slot, which holds the class of the objects it filters, and a {\tt
+filtered-class} slot which holds the delegator class, the subclass of
+{\tt delegate-class} created by {\tt define-delegator}.  It also
+contains a dictionary of the delegate objects it has seen, each one
+paired with the associated delegator which it created.
+
+During the re-traversal mentioned above, if the filter finds or
+creates a delegator object for the object which the event hit, the
+event is handled by the delegator object.  To create a delegator the
+system also continues the re-traversal and obtains the delegate from
+the first filter which can provide one.  This allows the construction
+of multi-level delegate/delegator pairs to implement filter
+composition.  If no filter provides a delegate the original object is
+used.
+%%%     52 Composition of Filters
+\subsection{Filter Composition}
+
+Now let us consider how these filters will compose.  We would like a
+filter which is placed on top of the {\tt text-editor} filter to use the
+{\tt text-being-edited} objects as delegates for its own delegator
+type (if it knows how.)  Filters you would place over a text editor
+filter might implement various input methods for international character
+sets.
+
+For composition to work correctly, it is important that we locate the
+delegator by starting our search from the topmost filter, which is also
+the first filter the event encountered.  In this way we will locate the
+most derived delegator, which includes the most functionality.  In
+terms of our example in figure \ref{composition}, the delegate object
+is a {\tt text} object and the delegator created by filter $f_1$ is a
+{\tt text-being-edited} object, while $f_2$ has built a delegator
+$d_2$ that extends delegate $d_1$, the {\tt text-being-edited} object.
+Delegator $d_2$ might be of a class that overrides the event handling
+methods of the {\tt text-being-edited} class to implement a
+specialized text input method, such as the Pin Yin method for inputing
+Chinese text.  Filter $f_3$ does not participate, as it does not
+recognize {\tt text} as a delegate class.
+\begin{figure}[thb]
+\centerline{\includegraphics[width=3.4in]{fig/composition.eps}}
+\caption{An event passes through filters $f_3$, $f_2$ and $f_1$ and
+hits an object.  Then the filter stack is searched for that object's
+topmost delegator, $d_2$, which is found in $f_2$.}
+\label{composition}
+\end{figure}
+
+There is one final bit of complexity to be noted here.  If an event
+arrives before either of the delegator objects in figure
+\ref{composition} have been created, $d_1$ must be created {\em
+before} $d_2$, so that $d_2$ can use $d_1$ as its delegate.  This is
+accomplished by a recursive call to the delegator creation procedure.
+
+Now suppose we place one {\tt text-editor} filter on top of another.
+The topmost filter will see the {\tt text-being-edited} delegators, but
+it will treat them as {\tt text} delegators and generate its own {\tt
+text-being-edited} delegators.  Each filter will manage its own cursor
+for each {\tt text} object, and events sent to each delegator will
+perform modifications on the underlying {\tt text} object.  The two
+should be able to co-exist.
+
+It should also be noted that composed filters are able to build on the
+results of other filters, but also co-exist peacefully if they lack
+knowledge of one another.  This technique has all the advantages of
+the MIMO (Model In - Model Out) approach without the drawbacks of
+wasted storage and the difficulties of propagating changes back to the
+original object.  It is also a simple matter to implement the
+Recursive Ambush technique~(discussed in section
+\ref{RecursiveAmbush}) by overriding the delegator's draw method.
+%%%     37 Dynamic Delegator Classes
+
+\section{Creating Delegator Classes Dynamically}
+
+There is still a problem with the way that filter composition will
+behave using the implementation described above.  Suppose we have two
+filters with the same delegate class but different delegator classes,
+for example, a text editor filter and a grammar checker filter.  If we put
+the grammar checker filter on top of the text editor filter the resulting
+delegators will have the grammar checker behavior but not the text
+editor behavior.  This is because the {\tt text-being-grammar-checked}
+delegator class is a subclass of {\tt text} rather than {\tt
+text-being-edited}.  If we swap the filters we will be able to edit the
+text but we won't see the grammar checker's output.
+
+In abstract terms, the problem is that the delegator class of the top
+filter is not a subclass of the delegator class of the filter below it.
+Instead, it is a subclass of the delegates at the bottom level.  We
+need the delegator of the top class to be a subclass of the delegator
+class of the filter below it so it can then further extend the
+functionality of the delegators that filter produces.
+
+This problem can be solved by using the ability of a CLOS-style object
+systems to create new classes at run time.  Instead of creating a
+single delegator class for a filter, we create a new one whenever we
+see an object which is of an unfamiliar subclass of the delegate
+class.  These {\tt (delegate-class,~delegator-class)} pairs can be
+stored in a hash table associated with the class of the filter.  Now a
+new class will be created to represent a {\tt text-being-edited}
+object which has a grammar checker filter over it, a {\tt
+text-being-edited-being-grammar-checked} class.  The render method of
+this new class will invoke the {\tt text-being-edited} render method
+before making its annotations.
+
+The dynamic creation of delegator classes allows filters which were not
+designed to work with each other to cooperatively produce combined
+views.
+%%     80 Conclusion
+
+\section{Conclusion}
+
+The design elements presented in this chapter fulfill the requirements
+set out in chapter \ref{Introduction} for a zoomable user interface
+system.  The features of the implementation language have had a strong
+influence on the implementation of many of the features, and the
+result is an interface with a high degree of flexibility and power.
+The use of an object system that supports multiple inheritance and
+multiple dispatch allows components to be written in a highly abstract
+fashion, which results in a flexible system with many reusable
+components.  This is done without losing performance by using a Scheme
+compiler and a highly optimized object system.
+
+The most basic feature of the Tab system is the fact that every Tablet
+has a private coordinate system.  This is analogous to the
+transformations used in 3-D graphics systems.  The Group object uses
+its transformation to exert control over the objects which it
+contains, and can be used for the implementation of spatial indexing
+schemes.  The mechanisms used in the update cycle
+(event/damage/render) also bear some similarity to the mechanisms used
+in 3-D rendering, but more emphasis is placed on careful damage
+analysis to avoid as much re-rendering as possible.  This is because
+the objects in Tab are applications, and rendering can involve
+expensive operations in the application domain.
+
+Each Viewer object represents a connection to the outside world, and
+this provides an intuitive model for multi-view and multi-user
+systems.  Because this is the only avenue to the real world, damage is
+only interesting if it eventually affects a viewer.  Damaged areas are
+accumulated in the viewer until the rendering portion of the update
+cycle is entered, at which point the viewer's render operation is
+invoked.  The refinement process is also initiated at this point by
+attaching the damaged shape to timer event which will expire about
+half a second in the future.  At that time another render request is
+initiated with the refinement parameter set to a higher level, so that
+better quality but more expensive rendering will be done.  During the
+period between the initial and refined rendering any new damage may
+cancel some or all of the refinement shape.  The refinement mechanism
+trades image quality for responsiveness during the times when the
+screen is changing too quickly for the user to notice.
+
+The inclusion of portals create the possibility of an object being
+visible in a viewer more than once, perhaps at different scales.  This
+introduces some issues for the implementation of semantic zooming.  In
+particular, it is vital that an object never assume that it has a
+single current scale.  If it needs to maintain scale specific state
+information, it must be able to maintain several sets for each of the
+currently visible scales.  Some assistance in meeting this requirement
+is provided by the transparency mechanism, which can be used to
+implement semantic zooming at a more sophisticated level than simply
+responding to requests to ``draw yourself at this scale.''  By
+creating a ``shutter'' that is opaque at lower magnifications and
+transparent at higher magnifications, more detailed objects can be
+revealed only when appropriate.
+
+The timer event mechanism used to schedule timer events is also used
+to implement any animation.  Objects simply attach themselves to a
+timer event, and the object system's dispatch mechanism invokes the
+proper method of the {\tt alarm} generic at the proper time.  The
+object system's dispatching mechanism is also used to distribute
+events by generating some generic function names from the event's type
+and then locating a method that matches the type of object the event
+hit.
+
+Also presented were mechanisms for saving and restoring a
+configuration, a constraint mechanism for allowing objects to
+cooperate, and several techniques for more efficient rendering, such
+as display lists.  Finally, the filtering mechanism was described,
+whereby both the appearance and interactive behavior of objects can be
+augmented and overridden.  This is how the Tab mechanisms for
+communication between objects, including operations
+such as inspection and editing, are implemented.
+
+ % Local Variables: ***
+ % mode: Outline ***
+ % outline-regexp: "[%]+" ***
+ % End: ***
